@@ -73,4 +73,6 @@ Cada archivo `SPEC-XXX-nombre.md` contiene:
     └── 014-monte-carlo-simulator   [PLANNED] (deps: 003, 010)
          └── 015-backtesting   [PLANNED] (deps: 003, 004, 014)
     └── 016-cli-interface   [COMPLETED] (deps: 003, 004, 005)
+         └── 017-fastapi-backend   [PLANNED] (deps: 002, 003, 004, 005, 014, 015)
+              └── 018-web-ui       [PLANNED] (deps: 017)
 ```
