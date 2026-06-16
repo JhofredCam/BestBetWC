@@ -1,0 +1,13 @@
+date,match_id,home_team,away_team,home_goals,away_goals,round
+2022-11-20T00:00:00,WC2022M-001,Brazil,Serbia,2,0,Group G
+2022-11-21T00:00:00,WC2022M-002,Argentina,Saudi Arabia,1,2,Group C
+2022-11-21T00:00:00,WC2022M-003,France,Australia,4,1,Group D
+2022-11-22T00:00:00,WC2022M-004,Germany,Japan,1,2,Group E
+2022-11-22T00:00:00,WC2022M-005,Spain,Costa Rica,7,0,Group E
+2022-11-22T00:00:00,WC2022M-006,England,Iran,6,2,Group B
+2022-11-23T00:00:00,WC2022M-007,Netherlands,Ecuador,1,1,Group A
+2022-11-23T00:00:00,WC2022M-008,Portugal,Ghana,3,2,Group H
+2022-11-23T00:00:00,WC2022M-009,Mexico,Poland,0,0,Group C
+2022-11-24T00:00:00,WC2022M-010,Brazil,Switzerland,1,0,Group G
+2022-11-24T00:00:00,WC2022M-011,Argentina,Mexico,2,0,Group C
+2022-11-25T00:00:00,WC2022M-012,France,Denmark,2,1,Group D

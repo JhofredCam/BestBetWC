@@ -93,7 +93,9 @@ class DixonColes:
             most_likely_score_prob=most_likely_score_prob,
         )
 
-    def fit(self, matches: list[dict[str, int | str]]) -> None:
+    def fit(
+        self, matches: list[dict[str, int | str]], fit_options: dict | None = None
+    ) -> None:
         teams_set: set[str] = set()
         for m in matches:
             teams_set.add(str(m["home_team"]))
@@ -131,7 +133,8 @@ class DixonColes:
 
             return -ll
 
-        result = minimize(neg_log_likelihood, params, method="L-BFGS-B")
+        opt_options = fit_options or {}
+        result = minimize(neg_log_likelihood, params, method="L-BFGS-B", options=opt_options)
 
         self.home_advantage = result.x[0]
         for i, team in enumerate(teams):

@@ -1,0 +1,65 @@
+date,match_id,home_team,away_team,home_goals,away_goals,round
+2022-11-20T00:00:00,WC2022-001,Qatar,Ecuador,0,2,Group A
+2022-11-21T00:00:00,WC2022-002,Senegal,Netherlands,0,2,Group A
+2022-11-21T00:00:00,WC2022-003,England,Iran,6,2,Group B
+2022-11-21T00:00:00,WC2022-004,USA,Wales,1,1,Group B
+2022-11-22T00:00:00,WC2022-005,Argentina,Saudi Arabia,1,2,Group C
+2022-11-22T00:00:00,WC2022-006,Mexico,Poland,0,0,Group C
+2022-11-22T00:00:00,WC2022-007,France,Australia,4,1,Group D
+2022-11-22T00:00:00,WC2022-008,Denmark,Tunisia,0,0,Group D
+2022-11-23T00:00:00,WC2022-009,Germany,Japan,1,2,Group E
+2022-11-23T00:00:00,WC2022-010,Spain,Costa Rica,7,0,Group E
+2022-11-23T00:00:00,WC2022-011,Morocco,Croatia,0,0,Group F
+2022-11-23T00:00:00,WC2022-012,Belgium,Canada,1,0,Group F
+2022-11-24T00:00:00,WC2022-013,Switzerland,Cameroon,1,0,Group G
+2022-11-24T00:00:00,WC2022-014,Brazil,Serbia,2,0,Group G
+2022-11-24T00:00:00,WC2022-015,Portugal,Ghana,3,2,Group H
+2022-11-24T00:00:00,WC2022-016,Uruguay,South Korea,0,0,Group H
+2022-11-25T00:00:00,WC2022-017,Qatar,Senegal,1,3,Group A
+2022-11-25T00:00:00,WC2022-018,Netherlands,Ecuador,1,1,Group A
+2022-11-25T00:00:00,WC2022-019,Wales,Iran,0,2,Group B
+2022-11-25T00:00:00,WC2022-020,England,USA,0,0,Group B
+2022-11-26T00:00:00,WC2022-021,Poland,Saudi Arabia,2,0,Group C
+2022-11-26T00:00:00,WC2022-022,Argentina,Mexico,2,0,Group C
+2022-11-26T00:00:00,WC2022-023,Tunisia,Australia,0,1,Group D
+2022-11-26T00:00:00,WC2022-024,France,Denmark,2,1,Group D
+2022-11-27T00:00:00,WC2022-025,Japan,Costa Rica,0,1,Group E
+2022-11-27T00:00:00,WC2022-026,Spain,Germany,1,1,Group E
+2022-11-27T00:00:00,WC2022-027,Belgium,Morocco,0,2,Group F
+2022-11-27T00:00:00,WC2022-028,Croatia,Canada,4,1,Group F
+2022-11-28T00:00:00,WC2022-029,Cameroon,Serbia,3,3,Group G
+2022-11-28T00:00:00,WC2022-030,Brazil,Switzerland,1,0,Group G
+2022-11-28T00:00:00,WC2022-031,South Korea,Ghana,2,3,Group H
+2022-11-28T00:00:00,WC2022-032,Portugal,Uruguay,2,0,Group H
+2022-11-29T00:00:00,WC2022-033,Netherlands,Qatar,2,0,Group A
+2022-11-29T00:00:00,WC2022-034,Ecuador,Senegal,1,2,Group A
+2022-11-29T00:00:00,WC2022-035,Wales,England,0,3,Group B
+2022-11-29T00:00:00,WC2022-036,Iran,USA,0,1,Group B
+2022-11-30T00:00:00,WC2022-037,Poland,Argentina,0,2,Group C
+2022-11-30T00:00:00,WC2022-038,Saudi Arabia,Mexico,1,2,Group C
+2022-11-30T00:00:00,WC2022-039,Tunisia,France,1,0,Group D
+2022-11-30T00:00:00,WC2022-040,Australia,Denmark,1,0,Group D
+2022-12-01T00:00:00,WC2022-041,Japan,Spain,2,1,Group E
+2022-12-01T00:00:00,WC2022-042,Costa Rica,Germany,2,4,Group E
+2022-12-01T00:00:00,WC2022-043,Croatia,Belgium,0,0,Group F
+2022-12-01T00:00:00,WC2022-044,Canada,Morocco,1,2,Group F
+2022-12-02T00:00:00,WC2022-045,Serbia,Switzerland,2,3,Group G
+2022-12-02T00:00:00,WC2022-046,Cameroon,Brazil,1,0,Group G
+2022-12-02T00:00:00,WC2022-047,South Korea,Portugal,2,1,Group H
+2022-12-02T00:00:00,WC2022-048,Ghana,Uruguay,0,2,Group H
+2022-12-03T00:00:00,WC2022-KO01,Netherlands,USA,3,1,Round of 16
+2022-12-03T00:00:00,WC2022-KO02,Argentina,Australia,2,1,Round of 16
+2022-12-04T00:00:00,WC2022-KO03,France,Poland,3,1,Round of 16
+2022-12-04T00:00:00,WC2022-KO04,England,Senegal,3,0,Round of 16
+2022-12-05T00:00:00,WC2022-KO05,Japan,Croatia,1,1,Round of 16
+2022-12-05T00:00:00,WC2022-KO06,Brazil,South Korea,4,1,Round of 16
+2022-12-06T00:00:00,WC2022-KO07,Morocco,Spain,0,0,Round of 16
+2022-12-06T00:00:00,WC2022-KO08,Portugal,Switzerland,6,1,Round of 16
+2022-12-09T00:00:00,WC2022-KO09,Netherlands,Argentina,2,2,Quarter-finals
+2022-12-09T00:00:00,WC2022-KO10,Croatia,Brazil,1,1,Quarter-finals
+2022-12-10T00:00:00,WC2022-KO11,Morocco,Portugal,1,0,Quarter-finals
+2022-12-10T00:00:00,WC2022-KO12,England,France,1,2,Quarter-finals
+2022-12-13T00:00:00,WC2022-KO13,Argentina,Croatia,3,0,Semi-finals
+2022-12-14T00:00:00,WC2022-KO14,France,Morocco,2,0,Semi-finals
+2022-12-17T00:00:00,WC2022-KO15,Croatia,Morocco,2,1,Third place
+2022-12-18T00:00:00,WC2022-KO16,Argentina,France,3,3,Final

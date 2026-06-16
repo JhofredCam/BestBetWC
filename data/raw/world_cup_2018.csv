@@ -1,0 +1,65 @@
+date,match_id,home_team,away_team,home_goals,away_goals,round
+2018-06-14T00:00:00,WC2018-001,Russia,Saudi Arabia,5,0,Group A
+2018-06-15T00:00:00,WC2018-002,Egypt,Uruguay,0,1,Group A
+2018-06-15T00:00:00,WC2018-003,Morocco,Iran,0,1,Group B
+2018-06-15T00:00:00,WC2018-004,Portugal,Spain,3,3,Group B
+2018-06-16T00:00:00,WC2018-005,France,Australia,2,1,Group C
+2018-06-16T00:00:00,WC2018-006,Peru,Denmark,0,1,Group C
+2018-06-16T00:00:00,WC2018-007,Argentina,Iceland,1,1,Group D
+2018-06-16T00:00:00,WC2018-008,Croatia,Nigeria,2,0,Group D
+2018-06-17T00:00:00,WC2018-009,Costa Rica,Serbia,0,1,Group E
+2018-06-17T00:00:00,WC2018-010,Brazil,Switzerland,1,1,Group E
+2018-06-17T00:00:00,WC2018-011,Germany,Mexico,0,1,Group F
+2018-06-18T00:00:00,WC2018-012,Sweden,South Korea,1,0,Group F
+2018-06-18T00:00:00,WC2018-013,Belgium,Panama,3,0,Group G
+2018-06-18T00:00:00,WC2018-014,Tunisia,England,1,2,Group G
+2018-06-19T00:00:00,WC2018-015,Colombia,Japan,1,2,Group H
+2018-06-19T00:00:00,WC2018-016,Poland,Senegal,1,2,Group H
+2018-06-19T00:00:00,WC2018-017,Russia,Egypt,3,1,Group A
+2018-06-20T00:00:00,WC2018-018,Uruguay,Saudi Arabia,1,0,Group A
+2018-06-20T00:00:00,WC2018-019,Portugal,Morocco,1,0,Group B
+2018-06-20T00:00:00,WC2018-020,Iran,Spain,0,1,Group B
+2018-06-21T00:00:00,WC2018-021,Denmark,Australia,1,1,Group C
+2018-06-21T00:00:00,WC2018-022,France,Peru,1,0,Group C
+2018-06-21T00:00:00,WC2018-023,Argentina,Croatia,0,3,Group D
+2018-06-22T00:00:00,WC2018-024,Nigeria,Iceland,2,0,Group D
+2018-06-22T00:00:00,WC2018-025,Brazil,Costa Rica,2,0,Group E
+2018-06-22T00:00:00,WC2018-026,Serbia,Switzerland,1,2,Group E
+2018-06-23T00:00:00,WC2018-027,Belgium,Tunisia,5,2,Group G
+2018-06-23T00:00:00,WC2018-028,South Korea,Mexico,1,2,Group F
+2018-06-23T00:00:00,WC2018-029,Germany,Sweden,2,1,Group F
+2018-06-24T00:00:00,WC2018-030,England,Panama,6,1,Group G
+2018-06-24T00:00:00,WC2018-031,Japan,Senegal,2,2,Group H
+2018-06-24T00:00:00,WC2018-032,Poland,Colombia,0,3,Group H
+2018-06-25T00:00:00,WC2018-033,Uruguay,Russia,3,0,Group A
+2018-06-25T00:00:00,WC2018-034,Saudi Arabia,Egypt,2,1,Group A
+2018-06-25T00:00:00,WC2018-035,Spain,Morocco,2,2,Group B
+2018-06-25T00:00:00,WC2018-036,Iran,Portugal,1,1,Group B
+2018-06-26T00:00:00,WC2018-037,Denmark,France,0,0,Group C
+2018-06-26T00:00:00,WC2018-038,Australia,Peru,0,2,Group C
+2018-06-26T00:00:00,WC2018-039,Nigeria,Argentina,1,2,Group D
+2018-06-26T00:00:00,WC2018-040,Iceland,Croatia,1,2,Group D
+2018-06-27T00:00:00,WC2018-041,Serbia,Brazil,0,2,Group E
+2018-06-27T00:00:00,WC2018-042,Switzerland,Costa Rica,2,2,Group E
+2018-06-27T00:00:00,WC2018-043,South Korea,Germany,2,0,Group F
+2018-06-27T00:00:00,WC2018-044,Mexico,Sweden,0,3,Group F
+2018-06-28T00:00:00,WC2018-045,Japan,Poland,0,1,Group H
+2018-06-28T00:00:00,WC2018-046,Senegal,Colombia,0,1,Group H
+2018-06-28T00:00:00,WC2018-047,England,Belgium,0,1,Group G
+2018-06-28T00:00:00,WC2018-048,Panama,Tunisia,1,2,Group G
+2018-06-30T00:00:00,WC2018-KO01,France,Argentina,4,3,Round of 16
+2018-06-30T00:00:00,WC2018-KO02,Uruguay,Portugal,2,1,Round of 16
+2018-07-01T00:00:00,WC2018-KO03,Spain,Russia,1,1,Round of 16
+2018-07-01T00:00:00,WC2018-KO04,Croatia,Denmark,1,1,Round of 16
+2018-07-02T00:00:00,WC2018-KO05,Brazil,Mexico,2,0,Round of 16
+2018-07-02T00:00:00,WC2018-KO06,Belgium,Japan,3,2,Round of 16
+2018-07-03T00:00:00,WC2018-KO07,Sweden,Switzerland,1,0,Round of 16
+2018-07-03T00:00:00,WC2018-KO08,Colombia,England,1,1,Round of 16
+2018-07-06T00:00:00,WC2018-KO09,Uruguay,France,0,2,Quarter-finals
+2018-07-06T00:00:00,WC2018-KO10,Brazil,Belgium,1,2,Quarter-finals
+2018-07-07T00:00:00,WC2018-KO11,Sweden,England,0,2,Quarter-finals
+2018-07-07T00:00:00,WC2018-KO12,Russia,Croatia,2,2,Quarter-finals
+2018-07-10T00:00:00,WC2018-KO13,France,Belgium,1,0,Semi-finals
+2018-07-11T00:00:00,WC2018-KO14,Croatia,England,2,1,Semi-finals
+2018-07-14T00:00:00,WC2018-KO15,Belgium,England,2,0,Third place
+2018-07-15T00:00:00,WC2018-KO16,France,Croatia,4,2,Final
