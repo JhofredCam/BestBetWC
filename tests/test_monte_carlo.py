@@ -2,10 +2,8 @@ from __future__ import annotations
 
 import time
 
-import numpy as np
 import pytest
 
-from src.config import PollaRules
 from src.models.dixon_coles import DixonColes, MatchPrediction
 from src.optimization.expected_score import ExpectedScoreCalculator
 from src.simulation.monte_carlo import MonteCarloEngine
@@ -289,7 +287,7 @@ def test_performance_under_threshold(
         return sample_pred.most_likely_score
 
     start = time.perf_counter()
-    reports = engine.run_full_simulation(
+    engine.run_full_simulation(
         match_predictions=match_predictions,
         my_strategies={"Test": my_strat},
         n_simulations=10,

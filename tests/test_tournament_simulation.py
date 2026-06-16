@@ -2,9 +2,9 @@ from __future__ import annotations
 
 import time
 
-import numpy as np
 import pytest
 
+from src.config import PollaRules
 from src.models.dixon_coles import DixonColes, MatchPrediction
 from src.simulation.tournament import (
     SimulationConfig,
@@ -12,7 +12,6 @@ from src.simulation.tournament import (
     TournamentSimulator,
     _calculate_points,
 )
-from src.config import PollaRules
 
 
 @pytest.fixture

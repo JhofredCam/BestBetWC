@@ -1,8 +1,7 @@
 from __future__ import annotations
 
-from dataclasses import dataclass, field
-from datetime import UTC, datetime
-from typing import Any, Callable
+from collections.abc import Callable
+from dataclasses import dataclass
 
 import numpy as np
 
@@ -64,7 +63,6 @@ _GROUP_MATCHES: list[tuple[int, int]] = [
 
 
 def _default_group_teams(config: SimulationConfig) -> list[list[str]]:
-    n_teams = config.n_groups * config.teams_per_group
     groups: list[list[str]] = []
     for g in range(config.n_groups):
         teams = [f"T{g}-{t}" for t in range(config.teams_per_group)]
@@ -385,7 +383,7 @@ class TournamentSimulator:
 
         if self.config.track_progress:
             try:
-                from tqdm import tqdm
+                from tqdm import tqdm  # type: ignore[import-untyped]
                 iterator = tqdm(range(n_sims), desc="Simulando torneos")
             except ImportError:
                 iterator = range(n_sims)

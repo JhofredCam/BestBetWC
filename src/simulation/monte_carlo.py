@@ -1,18 +1,16 @@
 from __future__ import annotations
 
-from typing import Any, Callable
+from collections.abc import Callable
 
 from src.models.dixon_coles import MatchPrediction
 from src.optimization.expected_score import ExpectedScoreCalculator
 from src.simulation.participants import (
     ParticipantSimulator,
     SimulatedParticipant,
-    StrategyMode,
 )
 from src.simulation.tournament import (
     SimulationConfig,
     SimulationReport,
-    TournamentResult,
     TournamentSimulator,
 )
 

@@ -1,3 +1,9 @@
+from src.simulation.monte_carlo import MonteCarloEngine
+from src.simulation.participants import (
+    ParticipantSimulator,
+    SimulatedParticipant,
+    StrategyMode,
+)
 from src.simulation.tournament import (
     SimulationConfig,
     SimulationReport,
@@ -5,12 +11,6 @@ from src.simulation.tournament import (
     TournamentResult,
     TournamentSimulator,
 )
-from src.simulation.participants import (
-    ParticipantSimulator,
-    SimulatedParticipant,
-    StrategyMode,
-)
-from src.simulation.monte_carlo import MonteCarloEngine
 
 __all__ = [
     "SimulationConfig",
