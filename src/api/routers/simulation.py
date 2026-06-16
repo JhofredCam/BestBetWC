@@ -37,7 +37,6 @@ def _simulate_match(
     rng: np.random.Generator,
 ) -> list[SimulationResult]:
     pred = dc.predict_from_params(home_lambda, away_lambda)
-    max_goals = pred.score_matrix.shape[0]
 
     results_by_score: dict[tuple[int, int], dict[str, list[float]]] = {}
     for _ in range(n):

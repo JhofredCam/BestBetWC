@@ -5,7 +5,7 @@ from sqlalchemy.orm import Session
 
 from src.api.dependencies import get_db
 from src.api.schemas import MatchSummary
-from src.database.models import Match, Team
+from src.database.models import Match
 
 router = APIRouter()
 

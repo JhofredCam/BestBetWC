@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import numpy as np
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.orm import Session
 

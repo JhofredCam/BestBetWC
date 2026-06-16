@@ -1,13 +1,11 @@
 from __future__ import annotations
 
 from fastapi import APIRouter, Depends
-from sqlalchemy.orm import Session
 
-from src.api.dependencies import get_db, get_ep_calculator, get_strategy_selector
+from src.api.dependencies import get_strategy_selector
 from src.api.schemas import StrategyModesResponse, StrategyRecommendationResponse
 from src.config import STRATEGY_CONFIG
-from src.models.dixon_coles import DixonColes, MatchPrediction
-from src.optimization.expected_score import ExpectedScoreCalculator
+from src.models.dixon_coles import DixonColes
 from src.optimization.strategy import StrategySelector
 
 router = APIRouter()

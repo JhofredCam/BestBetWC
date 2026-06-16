@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from collections.abc import Callable
+
 from fastapi import APIRouter, Depends, HTTPException
 
 from src.api.dependencies import get_backtest_engine
@@ -26,7 +28,7 @@ STRATEGY_REGISTRY: dict[str, str] = {
 }
 
 
-def _build_strategy_fn(name: str):
+def _build_strategy_fn(name: str) -> Callable[[MatchPrediction, str, str], tuple[int, int]]:
     if name == "optimal_ep":
         return make_optimal_ep_strategy()
     elif name == "always_favorite":

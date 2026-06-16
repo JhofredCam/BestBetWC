@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 from datetime import datetime
-from typing import Optional
 
 from pydantic import BaseModel, Field
 
@@ -125,8 +124,8 @@ class MatchSummary(BaseModel):
     datetime: datetime
     round: str
     status: str
-    home_score: Optional[int] = None
-    away_score: Optional[int] = None
+    home_score: int | None = None
+    away_score: int | None = None
 
 
 class StandingEntry(BaseModel):
