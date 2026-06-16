@@ -5,6 +5,7 @@ from collections.abc import Callable
 from datetime import UTC, datetime
 from pathlib import Path
 
+import httpx
 import numpy as np
 import typer
 from rich.console import Console
@@ -349,8 +350,20 @@ def update(
                             "  [yellow]No se encontraron cuotas disponibles[/yellow]"
                         )
                     results.append(f"odds: {len(odds_list)} snapshots")
+            except httpx.HTTPStatusError as e:
+                if e.response.status_code == 404:
+                    console.print(
+                        "  [yellow]Mundial 2026 no disponible aún en The Odds API."
+                        " Se activará al acercarse la fecha.[/yellow]"
+                    )
+                elif e.response.status_code == 401:
+                    console.print(
+                        "  [red]API key inválida. Revisá THE_ODDS_API_KEY en .env[/red]"
+                    )
+                else:
+                    console.print(f"  [red]Error HTTP {e.response.status_code}[/red]")
             except Exception as e:
-                console.print(f"[red]Error obteniendo odds: {e}[/red]")
+                console.print(f"  [red]Error: {e}[/red]")
 
         if source in ("football", "all"):
             try:
@@ -370,8 +383,16 @@ def update(
                         "  [green]Datos de equipos y partidos actualizados[/green]"
                     )
                     results.append("football: actualizado")
+            except httpx.HTTPStatusError as e:
+                if e.response.status_code == 429:
+                    console.print(
+                        "  [yellow]Límite de requests excedido (100/día). "
+                        "Reintentá mañana.[/yellow]"
+                    )
+                else:
+                    console.print(f"  [red]Error HTTP {e.response.status_code}[/red]")
             except Exception as e:
-                console.print(f"[red]Error obteniendo football: {e}[/red]")
+                console.print(f"  [red]Error: {e}[/red]")
 
         if source in ("fbref", "all"):
             try:
@@ -384,8 +405,20 @@ def update(
                     f"estadísticas de partidos[/green]"
                 )
                 results.append(f"fbref: {len(match_stats)} partidos")
+            except httpx.HTTPStatusError as e:
+                if e.response.status_code == 403:
+                    console.print(
+                        "  [yellow]FBref bloqueó la solicitud (anti-bot). "
+                        "Reintentá más tarde o usá --source football.[/yellow]"
+                    )
+                elif e.response.status_code == 404:
+                    console.print(
+                        "  [yellow]URL no encontrada en FBref.[/yellow]"
+                    )
+                else:
+                    console.print(f"  [red]Error HTTP {e.response.status_code}[/red]")
             except Exception as e:
-                console.print(f"[red]Error obteniendo FBref: {e}[/red]")
+                console.print(f"  [red]Error: {e}[/red]")
 
         if results:
             console.print("\n[bold green]Actualización completada:[/bold green]")
