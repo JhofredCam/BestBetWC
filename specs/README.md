@@ -91,7 +91,7 @@ Cada archivo `SPEC-XXX-nombre.md` contiene:
          │    └── 004-expected-score-calculator  [COMPLETED]
          │         └── 005-strategy-selector     [COMPLETED]
          ├── 006-odds-api-etl       [COMPLETED]
-         ├── 007-api-football-etl   [PLANNED]
+         ├── 007-api-football-etl   [COMPLETED]
          └── 008-data-pipeline      [PLANNED] (deps: 006, 007)
               └── 009-gradient-boost-model   [PLANNED]
                    └── 010-model-ensemble    [PLANNED] (deps: 003, 009)

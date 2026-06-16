@@ -1,6 +1,6 @@
 # SPEC-007: API-Football ETL
 
-## Status: PLANNED
+## Status: COMPLETED
 
 ## Objective
 
