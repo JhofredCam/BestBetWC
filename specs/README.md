@@ -86,7 +86,7 @@ Cada archivo `SPEC-XXX-nombre.md` contiene:
 
 ```
 001-project-setup        [COMPLETED]
-    └── 002-database-layer    [PLANNED]
+    └── 002-database-layer    [COMPLETED]
          ├── 003-dixon-coles-model   [COMPLETED]
          │    └── 004-expected-score-calculator  [COMPLETED]
          │         └── 005-strategy-selector     [COMPLETED]
