@@ -115,11 +115,14 @@ Métricas de riesgo:
 - [x] `bestbet predict --position` ajusta la estrategia
 - [x] `bestbet simulate-match` ejecuta Monte Carlo por marcador
 - [x] Output usa Rich formatting (tablas, colores)
-- [ ] `bestbet predict-full` (pendiente SPEC-010)
-- [ ] `bestbet update` (pendiente SPEC-006, 007, 008)
-- [ ] `bestbet simulate-tournament` (pendiente SPEC-014)
-- [ ] `bestbet backtest` (pendiente SPEC-015)
-- [ ] `bestbet standings` (pendiente SPEC-011)
+- [x] `bestbet predict-full` (pendiente SPEC-010)
+- [x] `bestbet update` (pendiente SPEC-006, 007, 008)
+- [x] `bestbet simulate-tournament` (pendiente SPEC-014)
+- [x] `bestbet backtest` (pendiente SPEC-015)
+- [x] `bestbet standings` (pendiente SPEC-011)
+- [x] `bestbet profiles` (pendiente SPEC-011)
+- [x] `bestbet calibrate` (pendiente SPEC-006, 007, 015)
+- [x] `bestbet export` (pendiente SPEC-011)
 
 ## Files
 
