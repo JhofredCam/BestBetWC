@@ -1,6 +1,6 @@
 # SPEC-006: The Odds API ETL
 
-## Status: PLANNED
+## Status: COMPLETED
 
 ## Objective
 
