@@ -31,8 +31,9 @@ def setup_database() -> None:
 def test_engine_creation() -> None:
     engine = get_engine()
     assert engine is not None
-    result = engine.execute(text("SELECT 1"))
-    assert result.scalar() == 1
+    with engine.connect() as conn:
+        result = conn.execute(text("SELECT 1"))
+        assert result.scalar() == 1
 
 
 def test_session_creation() -> None:
