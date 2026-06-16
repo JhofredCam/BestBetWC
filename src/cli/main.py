@@ -12,7 +12,7 @@ from rich.console import Console
 from rich.panel import Panel
 from rich.table import Table
 
-from src.config import API_FOOTBALL_KEY, POLLA_RULES, THE_ODDS_API_KEY
+from src.config import API_FOOTBALL_KEY, POLLA_RULES, THE_ODDS_API_KEY, THE_ODDS_SPORT_KEY
 from src.database.connection import get_session
 from src.database.models import (
     Participant,
@@ -319,6 +319,10 @@ def update(
         "all", "--source", "-s",
         help="Data source to update (odds, football, fbref, all)",
     ),
+    sport: str = typer.Option(
+        "", "--sport",
+        help="Sport key for The Odds API (auto-detect if empty)",
+    ),
 ) -> None:
     """Fetch data from APIs and update the database."""
     valid_sources = {"odds", "football", "fbref", "all"}
@@ -337,7 +341,12 @@ def update(
                     )
                 else:
                     console.print("[cyan]Obteniendo cuotas de The Odds API...[/cyan]")
-                    odds_client = CachedOddsClient(THE_ODDS_API_KEY)
+                    odds_client = CachedOddsClient(
+                        THE_ODDS_API_KEY,
+                        sport_key=sport or THE_ODDS_SPORT_KEY,
+                    )
+                    sport_key = await odds_client.find_world_cup_key()
+                    console.print(f"  [dim]Sport key detectado: {sport_key}[/dim]")
                     odds_list, score_list = await odds_client.get_all_odds()
                     await odds_client.close()
                     if odds_list:

@@ -15,6 +15,7 @@ PREDICTIONS_DIR = DATA_DIR / "predictions"
 DATABASE_URL = os.getenv("DATABASE_URL", f"sqlite:///{DATA_DIR}/bestbetwc.db")
 THE_ODDS_API_KEY = os.getenv("THE_ODDS_API_KEY", "")
 API_FOOTBALL_KEY = os.getenv("API_FOOTBALL_KEY", "")
+THE_ODDS_SPORT_KEY = os.getenv("THE_ODDS_SPORT_KEY", "")
 
 
 @dataclass

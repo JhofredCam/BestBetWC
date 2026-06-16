@@ -51,8 +51,22 @@ class CorrectScoreSnapshot:
 class OddsAPIClient:
     BASE_URL = "https://api.the-odds-api.com/v4"
 
-    def __init__(self, api_key: str, cache_dir: Path | None = None) -> None:
+    WORLD_CUP_KEY_PATTERNS = [
+        "soccer_fifa_world_cup",
+        "soccer_world_cup_winner",
+        "soccer_fifa_wc",
+        "soccer_wc",
+        "soccer_world_cup",
+    ]
+
+    def __init__(
+        self,
+        api_key: str,
+        cache_dir: Path | None = None,
+        sport_key: str = "",
+    ) -> None:
         self.api_key = api_key
+        self._sport_key = sport_key
         self._semaphore = asyncio.Semaphore(5)
         self._client: httpx.AsyncClient | None = None
 
@@ -66,9 +80,38 @@ class OddsAPIClient:
             await self._client.aclose()
             self._client = None
 
-    async def get_upcoming_matches(self, sport: str = "soccer_world_cup") -> list[dict[str, Any]]:
+    async def get_available_sports(self) -> list[dict[str, Any]]:
         params = {"apiKey": self.api_key}
-        data = await self._make_request(f"/sports/{sport}/events", params)
+        data = await self._make_request("/sports", params)
+        return data if isinstance(data, list) else []
+
+    async def find_world_cup_key(self) -> str:
+        if self._sport_key:
+            return self._sport_key
+        sports = await self.get_available_sports()
+        for sport in sports:
+            key = sport.get("key", "")
+            if any(pattern == key for pattern in self.WORLD_CUP_KEY_PATTERNS):
+                self._sport_key = key
+                return key
+        for sport in sports:
+            key = sport.get("key", "")
+            title = sport.get("title", "")
+            if "world cup" in key.lower() or "world cup" in title.lower():
+                self._sport_key = key
+                return key
+        self._sport_key = "soccer_world_cup"
+        return self._sport_key
+
+    async def _get_sport_key(self) -> str:
+        if self._sport_key:
+            return self._sport_key
+        return await self.find_world_cup_key()
+
+    async def get_upcoming_matches(self, sport: str | None = None) -> list[dict[str, Any]]:
+        key = sport or await self._get_sport_key()
+        params = {"apiKey": self.api_key}
+        data = await self._make_request(f"/sports/{key}/events", params)
         return data if isinstance(data, list) else []
 
     async def get_match_odds(
@@ -77,13 +120,14 @@ class OddsAPIClient:
         regions: str = "eu",
         markets: str = "h2h,totals,btts,correct_score",
     ) -> tuple[list[OddsSnapshot], list[CorrectScoreSnapshot]]:
+        key = await self._get_sport_key()
         params = {
             "apiKey": self.api_key,
             "regions": regions,
             "markets": markets,
         }
         data = await self._make_request(
-            f"/sports/soccer_world_cup/events/{match_id}/odds", params
+            f"/sports/{key}/events/{match_id}/odds", params
         )
         return self._parse_odds_response(data, match_id)
 
@@ -282,8 +326,13 @@ class OddsAPIClient:
 
 
 class CachedOddsClient(OddsAPIClient):
-    def __init__(self, api_key: str, cache_ttl: int = 3600) -> None:
-        super().__init__(api_key)
+    def __init__(
+        self,
+        api_key: str,
+        cache_ttl: int = 3600,
+        sport_key: str = "",
+    ) -> None:
+        super().__init__(api_key, sport_key=sport_key)
         self.cache_ttl = cache_ttl
         self._cache_dir = CACHE_DIR
         self._cache_dir.mkdir(parents=True, exist_ok=True)

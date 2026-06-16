@@ -385,6 +385,7 @@ async def test_cache_hit_avoids_request() -> None:
     try:
         client = CachedOddsClient("dummy", cache_ttl=3600)
         client._cache_dir = tmp_dir
+        client._sport_key = "soccer_world_cup"
 
         call_count = 0
 
@@ -413,6 +414,7 @@ async def test_cache_expiry_refetches() -> None:
     try:
         client = CachedOddsClient("dummy", cache_ttl=0)
         client._cache_dir = tmp_dir
+        client._sport_key = "soccer_world_cup"
 
         call_count = 0
 
@@ -439,6 +441,7 @@ async def test_cache_file_created() -> None:
     try:
         client = CachedOddsClient("dummy", cache_ttl=3600)
         client._cache_dir = tmp_dir
+        client._sport_key = "soccer_world_cup"
 
         async def fake_request(inst: OddsAPIClient, endpoint: str, params: dict) -> dict:
             return mock_data
@@ -465,6 +468,7 @@ async def test_cache_corrupted_file_handled() -> None:
     try:
         client = CachedOddsClient("dummy", cache_ttl=3600)
         client._cache_dir = tmp_dir
+        client._sport_key = "soccer_world_cup"
 
         async def fake_request(inst: OddsAPIClient, endpoint: str, params: dict) -> dict:
             return mock_data
