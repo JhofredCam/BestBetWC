@@ -15,6 +15,7 @@ from rich.table import Table
 from src.config import API_FOOTBALL_KEY, POLLA_RULES, THE_ODDS_API_KEY, THE_ODDS_SPORT_KEY
 from src.database.connection import get_session
 from src.database.models import (
+    Match,
     Participant,
     ParticipantProfile,
     Standing,
@@ -969,6 +970,96 @@ def export(
 
     console.print(f"  [green]Exportadas {len(data)} predicciones a {output}[/green]")
     session.close()
+
+
+@app.command()
+def matches(
+    days: int = typer.Option(
+        2, "--days", "-d", help="Mostrar partidos de los próximos N días"
+    ),
+) -> None:
+    """Mostrar partidos guardados en la base de datos y sus predicciones."""
+    session = get_session()
+    try:
+        from datetime import UTC
+
+        now = datetime.now(UTC)
+        cutoff = now.replace(hour=0, minute=0, second=0, microsecond=0) + __import__(
+            "datetime"
+        ).timedelta(days=days)
+
+        db_matches = (
+            session.query(Match)
+            .filter(Match.datetime >= now, Match.datetime <= cutoff)
+            .order_by(Match.datetime.asc())
+            .all()
+        )
+
+        if not db_matches:
+            console.print(
+                Panel(
+                    "[yellow]No hay partidos en la base de datos para los próximos "
+                    f"{days} días.[/yellow]\n\n"
+                    "Ejecutá [cyan]bestbet update --source football[/cyan] para "
+                    "obtener datos de API-Football.",
+                    title="Sin partidos",
+                    border_style="yellow",
+                )
+            )
+            session.close()
+            return
+
+        model = DixonColes(max_goals=POLLA_RULES.max_goals)
+        calculator = ExpectedScoreCalculator()
+
+        for m in db_matches:
+            home_name = m.home_team.name if m.home_team else f"Team {m.home_team_id}"
+            away_name = m.away_team.name if m.away_team else f"Team {m.away_team_id}"
+            date_str = m.datetime.strftime("%d/%m %H:%M") if m.datetime else "?"
+            venue_str = f"{m.venue}, {m.city}" if m.venue else (m.city or "—")
+            round_str = m.round or "?"
+            status_str = m.status or "?"
+
+            console.print(
+                Panel(
+                    f"[bold]{home_name}[/bold] vs [bold]{away_name}[/bold]",
+                    border_style="cyan",
+                )
+            )
+            console.print(
+                f"  [dim]Fecha:[/dim] {date_str}  |  {round_str}  "
+                f"|  {venue_str}  |  {status_str}"
+            )
+
+            prediction = model.predict_match(home_name, away_name)
+            most_likely = (
+                f"{prediction.most_likely_score[0]}-{prediction.most_likely_score[1]}"
+            )
+            console.print(
+                f"  [dim]Más probable:[/dim] {most_likely} "
+                f"({prediction.most_likely_score_prob:.1%})"
+            )
+
+            top = calculator.rank_all_predictions(prediction)[:3]
+            table = Table(show_header=True, header_style="bold cyan")
+            table.add_column("#", style="dim", width=3)
+            table.add_column("Marcador", justify="center", width=8)
+            table.add_column("EP", justify="right", width=6)
+            table.add_column("P(Exacto)", justify="right", width=10)
+            for i, ep in enumerate(top, 1):
+                table.add_row(
+                    str(i),
+                    f"{ep.home_goals}-{ep.away_goals}",
+                    f"{ep.ep_total:.2f}",
+                    f"{ep.prob_exact:.1%}",
+                )
+            console.print("  [dim]Top 3 por Expected Score:[/dim]")
+            console.print(table)
+            console.print("")
+
+        console.print(f"[dim]Total: {len(db_matches)} partidos encontrados[/dim]")
+    finally:
+        session.close()
 
 
 if __name__ == "__main__":
