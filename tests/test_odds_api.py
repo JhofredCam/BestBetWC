@@ -366,6 +366,7 @@ async def test_get_all_odds() -> None:
     ]
 
     client = OddsAPIClient("dummy")
+    client._sport_key = "soccer_fifa_world_cup"
     with patch.object(client, "get_upcoming_matches", AsyncMock(return_value=mock_matches)):
         with patch.object(client, "get_match_odds", AsyncMock(side_effect=mock_odds)):
             all_odds, all_scores = await client.get_all_odds()

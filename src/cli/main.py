@@ -360,17 +360,24 @@ def update(
                         )
                     results.append(f"odds: {len(odds_list)} snapshots")
             except httpx.HTTPStatusError as e:
-                if e.response.status_code == 404:
+                msg = str(e)
+                if "422" in msg:
+                    console.print(
+                        "  [yellow]The Odds API rechazó la solicitud (422).[/yellow]"
+                    )
+                    if len(msg) > 10:
+                        console.print(f"  [dim]Detalle: {msg}[/dim]")
+                elif "404" in msg:
                     console.print(
                         "  [yellow]Mundial 2026 no disponible aún en The Odds API."
                         " Se activará al acercarse la fecha.[/yellow]"
                     )
-                elif e.response.status_code == 401:
+                elif "401" in msg:
                     console.print(
                         "  [red]API key inválida. Revisá THE_ODDS_API_KEY en .env[/red]"
                     )
                 else:
-                    console.print(f"  [red]Error HTTP {e.response.status_code}[/red]")
+                    console.print(f"  [red]Error HTTP: {msg}[/red]")
             except Exception as e:
                 console.print(f"  [red]Error: {e}[/red]")
 

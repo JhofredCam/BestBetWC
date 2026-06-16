@@ -134,13 +134,43 @@ class OddsAPIClient:
     async def get_all_odds(
         self,
     ) -> tuple[list[OddsSnapshot], list[CorrectScoreSnapshot]]:
-        matches = await self.get_upcoming_matches()
+        key = await self._get_sport_key()
+        try:
+            matches = await self.get_upcoming_matches()
+        except httpx.HTTPStatusError:
+            return await self._get_all_odds_direct(key)
+
+        if not matches:
+            return await self._get_all_odds_direct(key)
+
         all_odds: list[OddsSnapshot] = []
         all_scores: list[CorrectScoreSnapshot] = []
         for match in matches:
-            odds, scores = await self.get_match_odds(match["id"])
+            try:
+                odds, scores = await self.get_match_odds(match["id"])
+            except httpx.HTTPStatusError:
+                continue
             all_odds.extend(odds)
             all_scores.extend(scores)
+        return all_odds, all_scores
+
+    async def _get_all_odds_direct(
+        self, sport_key: str,
+    ) -> tuple[list[OddsSnapshot], list[CorrectScoreSnapshot]]:
+        params = {
+            "apiKey": self.api_key,
+            "regions": "eu",
+            "markets": "h2h,totals,btts,correct_score",
+        }
+        data = await self._make_request(f"/sports/{sport_key}/odds", params)
+        all_odds: list[OddsSnapshot] = []
+        all_scores: list[CorrectScoreSnapshot] = []
+        if isinstance(data, list):
+            for event in data:
+                match_id = str(event.get("id", ""))
+                b_odds, b_scores = self._parse_odds_response(event, match_id)
+                all_odds.extend(b_odds)
+                all_scores.extend(b_scores)
         return all_odds, all_scores
 
     @staticmethod
@@ -170,7 +200,17 @@ class OddsAPIClient:
             client = await self._get_client()
             url = f"{self.BASE_URL}{endpoint}"
             response = await client.get(url, params=params)
-            response.raise_for_status()
+            if response.status_code >= 400:
+                detail = ""
+                try:
+                    detail = response.text[:500]
+                except Exception:
+                    pass
+                raise httpx.HTTPStatusError(
+                    f"{response.status_code}: {detail}",
+                    request=response.request,
+                    response=response,
+                )
             return response.json()
 
     def _parse_odds_response(
