@@ -280,14 +280,22 @@ class TournamentSimulator:
     ) -> list[tuple[str, str, int, int]]:
         results: list[tuple[str, str, int, int]] = []
         current_round_teams = list(qualified_teams)
+        n_rounds = len(self._knockout_rounds)
+
+        semi_winners: list[str] = []
+        semi_losers: list[str] = []
 
         for round_idx, round_matches in enumerate(self._knockout_rounds):
-            next_round: list[str] = []
+            is_semi_final = (round_idx == n_rounds - 3)
+            is_third_place = (round_idx == n_rounds - 2)
 
-            if round_idx == len(self._knockout_rounds) - 2:
+            if is_third_place and semi_losers:
+                current_round_teams = list(semi_losers)
+            elif round_idx > 0 and not is_third_place:
                 pass
-            elif round_idx == len(self._knockout_rounds) - 1:
-                pass
+
+            next_round: list[str] = []
+            round_losers: list[str] = []
 
             for match_idx in range(len(round_matches)):
                 t_idx_h = match_idx * 2
@@ -311,15 +319,26 @@ class TournamentSimulator:
 
                 if h_goals > a_goals:
                     next_round.append(home)
+                    round_losers.append(away)
                 elif a_goals > h_goals:
                     next_round.append(away)
+                    round_losers.append(home)
                 else:
                     if self._rng.random() < 0.5:
                         next_round.append(home)
+                        round_losers.append(away)
                     else:
                         next_round.append(away)
+                        round_losers.append(home)
 
-            current_round_teams = next_round
+            if is_semi_final:
+                semi_winners = list(next_round)
+                semi_losers = list(round_losers)
+                current_round_teams = semi_winners
+            elif is_third_place:
+                current_round_teams = semi_winners
+            else:
+                current_round_teams = next_round
 
         return results
 
