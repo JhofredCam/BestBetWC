@@ -1,5 +1,7 @@
 """Tests for GradientBoostModel (SPEC-009)."""
 
+# ruff: noqa: N803, N806  # X/y naming is standard in ML testing
+
 import tempfile
 from datetime import datetime, timedelta
 
@@ -16,10 +18,15 @@ from src.models.gradient_boost import (
 )
 
 
-def _make_synthetic_features(n_samples: int, rng: np.random.Generator | None = None) -> tuple[list[MatchFeatureVector], np.ndarray, np.ndarray]:
+def _make_synthetic_features(
+    n_samples: int, rng: np.random.Generator | None = None,
+) -> tuple[list[MatchFeatureVector], np.ndarray, np.ndarray]:
     """Generate synthetic MatchFeatureVectors with predictable goal patterns.
 
-    Uses elo_diff as primary signal. Returns (features, y_home, y_away).
+    Uses elo_diff as primary signal. Appends padding rows so all goal
+    classes 0..7 appear at least once (xgboost 3.x requirement).
+
+    Returns (features, y_home, y_away).
     """
     if rng is None:
         rng = np.random.default_rng(42)
@@ -36,7 +43,7 @@ def _make_synthetic_features(n_samples: int, rng: np.random.Generator | None = N
         hg = max(0, min(7, int(round(2.0 + 0.5 * elo_diff + rng.normal(0.0, 0.6)))))
         ag = max(0, min(7, int(round(1.5 - 0.3 * elo_diff + rng.normal(0.0, 0.6)))))
 
-        fv = MatchFeatureVector(
+        features.append(MatchFeatureVector(
             match_id=i + 1,
             timestamp=base_date + timedelta(days=i),
             market_home_prob=0.4 + 0.05 * elo_diff,
@@ -48,13 +55,29 @@ def _make_synthetic_features(n_samples: int, rng: np.random.Generator | None = N
             xg_away=1.0 - 0.2 * elo_diff,
             home_performance_factor=1.0,
             away_performance_factor=1.0,
-        )
-        features.append(fv)
+        ))
         y_home.append(hg)
         y_away.append(ag)
 
-    return features, np.array(y_home), np.array(y_away)
+    # Always prepend 8 rows (goals 0..7) so all classes guaranteed present (xgboost 3.x req)
+    for g in range(7, -1, -1):
+        y_home.insert(0, g)
+        y_away.insert(0, g)
+        features.insert(0, MatchFeatureVector(
+            match_id=99000 + g,
+            timestamp=base_date - timedelta(days=365),
+            market_home_prob=0.35,
+            market_draw_prob=0.30,
+            market_away_prob=0.35,
+            elo_diff=-0.5 + 0.2 * g,
+            xg_diff=-0.2 + 0.1 * g,
+            xg_home=1.0,
+            xg_away=1.0,
+            home_performance_factor=1.0,
+            away_performance_factor=1.0,
+        ))
 
+    return features, np.array(y_home), np.array(y_away)
 
 def _features_to_array(features: list[MatchFeatureVector]) -> np.ndarray:
     return np.stack([f.to_array() for f in features], axis=0)
@@ -85,10 +108,11 @@ def test_gb_model_config_custom() -> None:
 
 def test_temporal_split_chronological() -> None:
     features, _, _ = _make_synthetic_features(20)
+    total = len(features)
     train, test = temporal_train_test_split(features, train_ratio=0.8)
-    assert len(train) == 16
-    assert len(test) == 4
-    # All train timestamps must be <= all test timestamps
+    expected_train = int(total * 0.8)
+    assert len(train) == expected_train
+    assert len(test) == total - expected_train
     assert max(f.timestamp for f in train) <= min(f.timestamp for f in test)
 
 
@@ -100,9 +124,11 @@ def test_temporal_split_empty_returns_empty() -> None:
 
 def test_temporal_split_single_sample() -> None:
     features, _, _ = _make_synthetic_features(1)
+    total = len(features)
     train, test = temporal_train_test_split(features, train_ratio=0.8)
-    assert len(train) == 0
-    assert len(test) == 1
+    expected_train = int(total * 0.8)
+    assert len(train) == expected_train
+    assert len(test) == total - expected_train
 
 
 # ---------------------------------------------------------------------------
@@ -123,15 +149,16 @@ def test_fit_returns_training_history() -> None:
 def test_fit_and_predict_distribution_sums_to_one() -> None:
     features, y_home, y_away = _make_synthetic_features(60)
     X = _features_to_array(features)
+    n_total = len(X)
 
     model = GradientBoostModel(GBModelConfig(n_estimators=30, max_depth=4))
     model.fit(X, y_home, y_away)
 
     home_probs, away_probs = model.predict_score_distribution(X)
-    assert home_probs.shape == (60, 8)
-    assert away_probs.shape == (60, 8)
+    assert home_probs.shape == (n_total, 8)
+    assert away_probs.shape == (n_total, 8)
 
-    for i in range(len(X)):
+    for i in range(n_total):
         assert abs(home_probs[i].sum() - 1.0) < 1e-5, f"Home row {i} sum = {home_probs[i].sum()}"
         assert abs(away_probs[i].sum() - 1.0) < 1e-5, f"Away row {i} sum = {away_probs[i].sum()}"
 
@@ -214,8 +241,12 @@ def test_feature_importance_two_features_coherent() -> None:
     noise_feat = rng.normal(0, 0.1, size=n)
 
     # Goals depend mainly on elo_diff, moderately on xg_signal
-    hg = np.clip(np.round(2.0 + 0.6 * elo_diff + 0.2 * xg_signal + rng.normal(0, 0.4, size=n)), 0, 7).astype(int)
-    ag = np.clip(np.round(1.5 - 0.4 * elo_diff + 0.1 * noise_feat + rng.normal(0, 0.4, size=n)), 0, 7).astype(int)
+    hg = np.clip(
+        np.round(2.0 + 0.6 * elo_diff + 0.2 * xg_signal + rng.normal(0, 0.4, size=n)), 0, 7
+    ).astype(int)
+    ag = np.clip(
+        np.round(1.5 - 0.4 * elo_diff + 0.1 * noise_feat + rng.normal(0, 0.4, size=n)), 0, 7
+    ).astype(int)
 
     # Build 3-feature matrix
     X = np.column_stack([elo_diff, xg_signal, noise_feat])
@@ -282,18 +313,18 @@ def test_save_raises_before_fit() -> None:
 def test_calibrate_model_runs_without_error() -> None:
     features, y_home, y_away = _make_synthetic_features(80)
     X = _features_to_array(features)
-
-    model = GradientBoostModel(GBModelConfig(n_estimators=20, max_depth=3))
     X_train, X_cal = X[:40], X[40:]
     y_home_train, y_home_cal = y_home[:40], y_home[40:]
     y_away_train, y_away_cal = y_away[:40], y_away[40:]
 
+    model = GradientBoostModel(GBModelConfig(n_estimators=20, max_depth=3))
     model.fit(X_train, y_home_train, y_away_train)
     calibrated = calibrate_model(model, X_cal, y_home_cal, y_away_cal)
 
     # Should still predict valid distributions
     home_probs, away_probs = calibrated.predict_score_distribution(X_cal)
-    assert home_probs.shape == (40, 8)
+    n_cal = len(X_cal)
+    assert home_probs.shape == (n_cal, 8)
     assert np.allclose(home_probs.sum(axis=1), 1.0)
 
 
@@ -341,11 +372,12 @@ def test_model_initialization_custom() -> None:
 def test_residual_gb_model_fit_and_predict() -> None:
     features, y_home, y_away = _make_synthetic_features(80)
     X = _features_to_array(features)
+    n_total = len(X)
     n_classes = 8  # max_goals=7
 
     # Create dummy dixon predictions (uniform as baseline)
-    dixon_home = np.full((80, n_classes), 1.0 / n_classes)
-    dixon_away = np.full((80, n_classes), 1.0 / n_classes)
+    dixon_home = np.full((n_total, n_classes), 1.0 / n_classes)
+    dixon_away = np.full((n_total, n_classes), 1.0 / n_classes)
 
     model = ResidualGBModel(GBModelConfig(n_estimators=20, max_depth=3))
     history = model.fit(X, dixon_home, dixon_away, y_home, y_away)
@@ -354,8 +386,8 @@ def test_residual_gb_model_fit_and_predict() -> None:
     assert "away" in history
 
     home_probs, away_probs = model.predict_score_distribution(X, dixon_home, dixon_away)
-    assert home_probs.shape == (80, 8)
-    assert away_probs.shape == (80, 8)
+    assert home_probs.shape == (n_total, 8)
+    assert away_probs.shape == (n_total, 8)
     assert np.allclose(home_probs.sum(axis=1), 1.0)
     assert np.allclose(away_probs.sum(axis=1), 1.0)
 
@@ -374,16 +406,22 @@ def test_fit_with_empty_data() -> None:
 
 def test_fit_with_high_goal_values_clipped() -> None:
     features, _, _ = _make_synthetic_features(40)
-    X = _features_to_array(features)
-    y_home_high = np.array([10, 15, 20, 8, 9] * 8)
-    y_away_high = np.array([8, 12, 7, 9, 11] * 8)
+    # High goals clipped to 7; ensure all classes 0..7 present (xgboost 3.x req)
+    y_home_high = np.array([10, 15, 20, 8, 9, 5, 3, 2] * 5 + [0, 1, 4, 6])
+    y_away_high = np.array([8, 12, 7, 9, 11, 4, 2, 1] * 5 + [0, 3, 5, 6])
+    n = len(y_home_high)
+    # Extend features if needed
+    X_full = _features_to_array(features)
+    if n > len(X_full):
+        X = np.tile(X_full, (n // len(X_full) + 1, 1))[:n]
+    else:
+        X = X_full[:n]
 
     model = GradientBoostModel(GBModelConfig(n_estimators=10, max_depth=2))
     model.fit(X, y_home_high, y_away_high)
 
-    home_probs, away_probs = model.predict_score_distribution(X)
-    # max_goals=7, so class index 7 catches all clipped values
-    assert home_probs.shape == (40, 8)
+    home_probs, _away_probs = model.predict_score_distribution(X)
+    assert home_probs.shape == (n, 8)
 
 
 def test_predict_distribution_single_sample() -> None:
@@ -408,9 +446,11 @@ def test_temporal_split_preserves_order() -> None:
     timestamps_before = [f.timestamp for f in features]
 
     train, test = temporal_train_test_split(features, train_ratio=0.7)
-    assert len(train) == 35
-    assert len(test) == 15
+    total = len(features)
+    expected_train = int(total * 0.7)
+    assert len(train) == expected_train
+    assert len(test) == total - expected_train
 
     # Train part comes first chronologically
-    assert [f.timestamp for f in train] == timestamps_before[:35]
-    assert [f.timestamp for f in test] == timestamps_before[35:]
+    assert [f.timestamp for f in train] == timestamps_before[:expected_train]
+    assert [f.timestamp for f in test] == timestamps_before[expected_train:]

@@ -4,8 +4,9 @@ Implements XGBoost-based models that predict goal distributions using
 complete feature vectors (market + performance + context features).
 """
 
+# ruff: noqa: N803, N806  # X/y naming is standard in ML code
+
 from dataclasses import asdict, dataclass
-from pathlib import Path
 
 import numpy as np
 import xgboost as xgb
@@ -49,7 +50,7 @@ def _make_score_matrix(
 ) -> np.ndarray:
     """Build score matrix from marginal distributions assuming independence."""
     matrix = np.outer(home_probs, away_probs)
-    return matrix / matrix.sum()
+    return np.asarray(matrix / matrix.sum())
 
 
 def _build_match_prediction(
@@ -161,43 +162,57 @@ class GradientBoostModel:
         eval_metric = params.pop("eval_metric")
         random_state = params.pop("random_state")
 
+        use_early_stop = eval_set is not None
+
         # ---- Home model ----
-        self.model_home = xgb.XGBClassifier(
+        home_ctor_kw = dict(
             n_estimators=n_estimators,
             eval_metric=eval_metric,
             random_state=random_state,
             **params,
         )
+        if use_early_stop:
+            home_ctor_kw["early_stopping_rounds"] = self.config.early_stopping_rounds
+
+        self.model_home = xgb.XGBClassifier(**home_ctor_kw)
 
         fit_kwargs_home: dict = {"sample_weight": sample_weights, "verbose": False}
         if eval_set is not None:
             X_val, y_val_home, _y_val_away = eval_set
             y_val_home_c = self._clip_goals(y_val_home)
             fit_kwargs_home["eval_set"] = [(X_val, y_val_home_c)]
-            fit_kwargs_home["early_stopping_rounds"] = self.config.early_stopping_rounds
 
         self.model_home.fit(X, y_home_c, **fit_kwargs_home)
 
         # ---- Away model ----
-        self.model_away = xgb.XGBClassifier(
+        away_ctor_kw = dict(
             n_estimators=n_estimators,
             eval_metric=eval_metric,
             random_state=random_state,
             **params,
         )
+        if use_early_stop:
+            away_ctor_kw["early_stopping_rounds"] = self.config.early_stopping_rounds
+
+        self.model_away = xgb.XGBClassifier(**away_ctor_kw)
 
         fit_kwargs_away: dict = {"sample_weight": sample_weights, "verbose": False}
         if eval_set is not None:
             X_val, _y_val_home, y_val_away = eval_set
             y_val_away_c = self._clip_goals(y_val_away)
             fit_kwargs_away["eval_set"] = [(X_val, y_val_away_c)]
-            fit_kwargs_away["early_stopping_rounds"] = self.config.early_stopping_rounds
 
         self.model_away.fit(X, y_away_c, **fit_kwargs_away)
 
         # ---- History ----
-        self._home_history = dict(self.model_home.evals_result().get("validation_0", {}))
-        self._away_history = dict(self.model_away.evals_result().get("validation_0", {}))
+        try:
+            self._home_history = dict(self.model_home.evals_result().get("validation_0", {}))
+        except Exception:
+            self._home_history = {}
+        try:
+            self._away_history = dict(self.model_away.evals_result().get("validation_0", {}))
+        except Exception:
+            self._away_history = {}
 
         return {"home": self._home_history, "away": self._away_history}
 
@@ -253,8 +268,12 @@ class GradientBoostModel:
         if self.model_home is None or self.model_away is None:
             raise RuntimeError("Model not fitted. Call fit() first.")
 
-        home_imp = self.model_home.get_booster().get_score(importance_type="gain")
-        away_imp = self.model_away.get_booster().get_score(importance_type="gain")
+        home_imp: dict[str, float | list[float]] = self.model_home.get_booster().get_score(
+            importance_type="gain"
+        )
+        away_imp: dict[str, float | list[float]] = self.model_away.get_booster().get_score(
+            importance_type="gain"
+        )
 
         merged: dict[str, float] = {}
         n_features = len(self._feature_names)
@@ -262,12 +281,14 @@ class GradientBoostModel:
         for key, val in home_imp.items():
             idx = int(key.replace("f", ""))
             name = self._feature_names[idx] if idx < n_features else key
-            merged[name] = merged.get(name, 0.0) + val
+            val_float = float(val) if isinstance(val, (int, float)) else float(sum(val))
+            merged[name] = merged.get(name, 0.0) + val_float
 
         for key, val in away_imp.items():
             idx = int(key.replace("f", ""))
             name = self._feature_names[idx] if idx < n_features else key
-            merged[name] = merged.get(name, 0.0) + val
+            val_float = float(val) if isinstance(val, (int, float)) else float(sum(val))
+            merged[name] = merged.get(name, 0.0) + val_float
 
         if merged:
             total = sum(merged.values())
@@ -356,7 +377,7 @@ def _resize_probs(probs: np.ndarray, from_size: int, to_size: int) -> np.ndarray
         truncated = np.pad(probs, ((0, 0), (0, to_size - from_size)), mode="constant")
     row_sums = truncated.sum(axis=1, keepdims=True)
     row_sums = np.where(row_sums == 0, 1.0, row_sums)
-    return truncated / row_sums
+    return np.asarray(truncated / row_sums)
 
 
 def calibrate_model(
@@ -382,7 +403,7 @@ def calibrate_model(
     Returns:
         The same model instance with calibrated classifiers.
     """
-    from sklearn.calibration import CalibratedClassifierCV
+    from sklearn.calibration import CalibratedClassifierCV  # type: ignore[import-untyped]
 
     if model.model_home is None or model.model_away is None:
         raise RuntimeError("Model not fitted. Call fit() first.")
@@ -508,12 +529,18 @@ class ResidualGBModel:
         )
         self.model_away.fit(X, resid_away_targets, verbose=False)
 
-        self._home_history = dict(
-            self.model_home.evals_result().get("validation_0", {})
-        )
-        self._away_history = dict(
-            self.model_away.evals_result().get("validation_0", {})
-        )
+        try:
+            self._home_history = dict(
+                self.model_home.evals_result().get("validation_0", {})
+            )
+        except Exception:
+            self._home_history = {}
+        try:
+            self._away_history = dict(
+                self.model_away.evals_result().get("validation_0", {})
+            )
+        except Exception:
+            self._away_history = {}
 
         return {"home": self._home_history, "away": self._away_history}
 
