@@ -1,0 +1,13 @@
+{
+  "get": "injuries",
+  "parameters": {"team": "1", "season": "2026"},
+  "results": 2,
+  "response": [
+    {
+      "player": {"id": 101, "name": "Lionel Messi", "injury": {"type": "Muscular", "status": "Doubtful", "return": "2026-06-15T00:00:00Z"}}
+    },
+    {
+      "player": {"id": 102, "name": "Angel Di Maria", "injury": {"type": "Knee", "status": "Out", "return": "2026-07-01T00:00:00Z"}}
+    }
+  ]
+}

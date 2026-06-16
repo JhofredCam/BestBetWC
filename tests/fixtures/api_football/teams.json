@@ -1,0 +1,135 @@
+{
+  "get": "teams",
+  "parameters": {"league": "1", "season": "2026"},
+  "results": 48,
+  "response": [
+    {
+      "team": {"id": 1, "name": "Argentina", "code": "ARG", "country": "Argentina", "founded": 1893, "logo": "https://media.api-football.com/teams/1.png"},
+      "venue": {"name": "Estadio Monumental", "city": "Buenos Aires"}
+    },
+    {
+      "team": {"id": 2, "name": "Brazil", "code": "BRA", "country": "Brazil", "founded": 1914, "logo": "https://media.api-football.com/teams/2.png"},
+      "venue": {"name": "Maracana", "city": "Rio de Janeiro"}
+    },
+    {
+      "team": {"id": 3, "name": "France", "code": "FRA", "country": "France", "founded": 1904, "logo": "https://media.api-football.com/teams/3.png"},
+      "venue": {"name": "Stade de France", "city": "Paris"}
+    },
+    {
+      "team": {"id": 4, "name": "Germany", "code": "GER", "country": "Germany", "founded": 1900, "logo": "https://media.api-football.com/teams/4.png"},
+      "venue": {"name": "Allianz Arena", "city": "Munich"}
+    },
+    {
+      "team": {"id": 5, "name": "Spain", "code": "ESP", "country": "Spain", "founded": 1913, "logo": "https://media.api-football.com/teams/5.png"},
+      "venue": {"name": "Santiago Bernabeu", "city": "Madrid"}
+    },
+    {
+      "team": {"id": 6, "name": "England", "code": "ENG", "country": "England", "founded": 1863, "logo": "https://media.api-football.com/teams/6.png"},
+      "venue": {"name": "Wembley", "city": "London"}
+    },
+    {
+      "team": {"id": 7, "name": "Portugal", "code": "POR", "country": "Portugal", "founded": 1914, "logo": "https://media.api-football.com/teams/7.png"},
+      "venue": {"name": "Estadio da Luz", "city": "Lisbon"}
+    },
+    {
+      "team": {"id": 8, "name": "Netherlands", "code": "NED", "country": "Netherlands", "founded": 1889, "logo": "https://media.api-football.com/teams/8.png"},
+      "venue": {"name": "Johan Cruyff Arena", "city": "Amsterdam"}
+    },
+    {
+      "team": {"id": 9, "name": "Italy", "code": "ITA", "country": "Italy", "founded": 1898, "logo": "https://media.api-football.com/teams/9.png"},
+      "venue": {"name": "San Siro", "city": "Milan"}
+    },
+    {
+      "team": {"id": 10, "name": "Uruguay", "code": "URU", "country": "Uruguay", "founded": 1900, "logo": "https://media.api-football.com/teams/10.png"},
+      "venue": {"name": "Estadio Centenario", "city": "Montevideo"}
+    },
+    {
+      "team": {"id": 11, "name": "Croatia", "code": "CRO", "country": "Croatia", "founded": 1912, "logo": "https://media.api-football.com/teams/11.png"},
+      "venue": {"name": "Maksimir", "city": "Zagreb"}
+    },
+    {
+      "team": {"id": 12, "name": "Belgium", "code": "BEL", "country": "Belgium", "founded": 1895, "logo": "https://media.api-football.com/teams/12.png"},
+      "venue": {"name": "King Baudouin", "city": "Brussels"}
+    },
+    {
+      "team": {"id": 13, "name": "Morocco", "code": "MAR", "country": "Morocco", "founded": 1955, "logo": "https://media.api-football.com/teams/13.png"},
+      "venue": {"name": "Stade Mohammed V", "city": "Casablanca"}
+    },
+    {
+      "team": {"id": 14, "name": "Japan", "code": "JPN", "country": "Japan", "founded": 1921, "logo": "https://media.api-football.com/teams/14.png"},
+      "venue": {"name": "Saitama Stadium", "city": "Saitama"}
+    },
+    {
+      "team": {"id": 15, "name": "Senegal", "code": "SEN", "country": "Senegal", "founded": 1960, "logo": "https://media.api-football.com/teams/15.png"},
+      "venue": {"name": "Stade Leopold Senghor", "city": "Dakar"}
+    },
+    {
+      "team": {"id": 16, "name": "Mexico", "code": "MEX", "country": "Mexico", "founded": 1927, "logo": "https://media.api-football.com/teams/16.png"},
+      "venue": {"name": "Estadio Azteca", "city": "Mexico City"}
+    },
+    {
+      "team": {"id": 17, "name": "USA", "code": "USA", "country": "USA", "founded": 1913, "logo": "https://media.api-football.com/teams/17.png"},
+      "venue": {"name": "MetLife Stadium", "city": "New Jersey"}
+    },
+    {
+      "team": {"id": 18, "name": "Canada", "code": "CAN", "country": "Canada", "founded": 1912, "logo": "https://media.api-football.com/teams/18.png"},
+      "venue": {"name": "BC Place", "city": "Vancouver"}
+    },
+    {
+      "team": {"id": 19, "name": "South Korea", "code": "KOR", "country": "South Korea", "founded": 1933, "logo": "https://media.api-football.com/teams/19.png"},
+      "venue": {"name": "Seoul World Cup Stadium", "city": "Seoul"}
+    },
+    {
+      "team": {"id": 20, "name": "Australia", "code": "AUS", "country": "Australia", "founded": 1961, "logo": "https://media.api-football.com/teams/20.png"},
+      "venue": {"name": "Stadium Australia", "city": "Sydney"}
+    },
+    {
+      "team": {"id": 21, "name": "Iran", "code": "IRN", "country": "Iran", "founded": 1920, "logo": "https://media.api-football.com/teams/21.png"},
+      "venue": {"name": "Azadi Stadium", "city": "Tehran"}
+    },
+    {
+      "team": {"id": 22, "name": "Saudi Arabia", "code": "KSA", "country": "Saudi Arabia", "founded": 1956, "logo": "https://media.api-football.com/teams/22.png"},
+      "venue": {"name": "King Fahd Stadium", "city": "Riyadh"}
+    },
+    {
+      "team": {"id": 23, "name": "Nigeria", "code": "NGA", "country": "Nigeria", "founded": 1945, "logo": "https://media.api-football.com/teams/23.png"},
+      "venue": {"name": "Moshood Abiola", "city": "Abuja"}
+    },
+    {
+      "team": {"id": 24, "name": "Ghana", "code": "GHA", "country": "Ghana", "founded": 1957, "logo": "https://media.api-football.com/teams/24.png"},
+      "venue": {"name": "Baba Yara", "city": "Kumasi"}
+    },
+    {
+      "team": {"id": 25, "name": "Cameroon", "code": "CMR", "country": "Cameroon", "founded": 1959, "logo": "https://media.api-football.com/teams/25.png"},
+      "venue": {"name": "Stade Omnisports", "city": "Yaounde"}
+    },
+    {
+      "team": {"id": 26, "name": "Ivory Coast", "code": "CIV", "country": "Ivory Coast", "founded": 1960, "logo": "https://media.api-football.com/teams/26.png"},
+      "venue": {"name": "Stade Felix Houphouet-Boigny", "city": "Abidjan"}
+    },
+    {
+      "team": {"id": 27, "name": "Algeria", "code": "ALG", "country": "Algeria", "founded": 1962, "logo": "https://media.api-football.com/teams/27.png"},
+      "venue": {"name": "Stade 5 Juillet", "city": "Algiers"}
+    },
+    {
+      "team": {"id": 28, "name": "Tunisia", "code": "TUN", "country": "Tunisia", "founded": 1957, "logo": "https://media.api-football.com/teams/28.png"},
+      "venue": {"name": "Stade Olympique", "city": "Rades"}
+    },
+    {
+      "team": {"id": 29, "name": "Egypt", "code": "EGY", "country": "Egypt", "founded": 1921, "logo": "https://media.api-football.com/teams/29.png"},
+      "venue": {"name": "Cairo International", "city": "Cairo"}
+    },
+    {
+      "team": {"id": 30, "name": "Argentina B", "code": "AR2", "country": "Argentina", "founded": 1893, "logo": "https://media.api-football.com/teams/30.png"},
+      "venue": {"name": "Estadio Monumental", "city": "Buenos Aires"}
+    },
+    {
+      "team": {"id": 31, "name": "Brazil B", "code": "BR2", "country": "Brazil", "founded": 1914, "logo": "https://media.api-football.com/teams/31.png"},
+      "venue": {"name": "Maracana", "city": "Rio de Janeiro"}
+    },
+    {
+      "team": {"id": 32, "name": "Colombia", "code": "COL", "country": "Colombia", "founded": 1924, "logo": "https://media.api-football.com/teams/32.png"},
+      "venue": {"name": "Estadio Metropolitano", "city": "Barranquilla"}
+    }
+  ]
+}

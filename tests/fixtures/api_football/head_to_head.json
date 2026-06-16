@@ -1,0 +1,12 @@
+{
+  "get": "fixtures/headtohead",
+  "parameters": {"h2h": "1-2", "last": "5"},
+  "results": 5,
+  "response": [
+    {"fixture": {"id": 3001, "date": "2025-11-22T20:00:00Z", "venue": {"name": "Maracana"}, "status": {"short": "FT"}}, "league": {"round": "WC Qualifiers"}, "teams": {"home": {"id": 2}, "away": {"id": 1}}, "goals": {"home": 0, "away": 1}, "score": {}},
+    {"fixture": {"id": 3002, "date": "2024-07-10T20:00:00Z", "venue": {"name": "Estadio Monumental"}, "status": {"short": "FT"}}, "league": {"round": "Copa America Final"}, "teams": {"home": {"id": 1}, "away": {"id": 2}}, "goals": {"home": 1, "away": 0}, "score": {}},
+    {"fixture": {"id": 3003, "date": "2023-11-21T20:00:00Z", "venue": {"name": "Maracana"}, "status": {"short": "FT"}}, "league": {"round": "WC Qualifiers"}, "teams": {"home": {"id": 2}, "away": {"id": 1}}, "goals": {"home": 0, "away": 0}, "score": {}},
+    {"fixture": {"id": 3004, "date": "2021-07-11T20:00:00Z", "venue": {"name": "Maracana"}, "status": {"short": "FT"}}, "league": {"round": "Copa America Final"}, "teams": {"home": {"id": 1}, "away": {"id": 2}}, "goals": {"home": 1, "away": 2}, "score": {}},
+    {"fixture": {"id": 3005, "date": "2019-11-15T20:00:00Z", "venue": {"name": "Estadio Monumental"}, "status": {"short": "FT"}}, "league": {"round": "Friendly"}, "teams": {"home": {"id": 1}, "away": {"id": 2}}, "goals": {"home": 2, "away": 1}, "score": {}}
+  ]
+}

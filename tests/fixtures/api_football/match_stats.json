@@ -1,0 +1,37 @@
+{
+  "get": "fixtures/statistics",
+  "parameters": {"fixture": "1001"},
+  "results": 2,
+  "response": [
+    {
+      "team": {"id": 1, "name": "Argentina"},
+      "statistics": [
+        {"type": "Ball Possession", "value": "58%"},
+        {"type": "Total Shots", "value": 14},
+        {"type": "Shots on Goal", "value": 6},
+        {"type": "Shots off Goal", "value": 5},
+        {"type": "Corner Kicks", "value": 7},
+        {"type": "Fouls", "value": 12},
+        {"type": "Yellow Cards", "value": 2},
+        {"type": "Red Cards", "value": 0},
+        {"type": "Total Passes", "value": 523},
+        {"type": "Accurate Passes", "value": 456}
+      ]
+    },
+    {
+      "team": {"id": 6, "name": "England"},
+      "statistics": [
+        {"type": "Ball Possession", "value": "42%"},
+        {"type": "Total Shots", "value": 9},
+        {"type": "Shots on Goal", "value": 3},
+        {"type": "Shots off Goal", "value": 4},
+        {"type": "Corner Kicks", "value": 4},
+        {"type": "Fouls", "value": 15},
+        {"type": "Yellow Cards", "value": 3},
+        {"type": "Red Cards", "value": 0},
+        {"type": "Total Passes", "value": 389},
+        {"type": "Accurate Passes", "value": 312}
+      ]
+    }
+  ]
+}
