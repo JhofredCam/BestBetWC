@@ -94,7 +94,7 @@ Cada archivo `SPEC-XXX-nombre.md` contiene:
          ├── 007-api-football-etl   [COMPLETED]
           └── 008-data-pipeline      [COMPLETED] (deps: 006, 007)
                └── 009-gradient-boost-model   [COMPLETED]
-                   └── 010-model-ensemble    [PLANNED] (deps: 003, 009)
+                   └── 010-model-ensemble    [COMPLETED] (deps: 003, 009)
     ├── 011-polla-scraper   [PLANNED]
     │    └── 012-game-theory   [PLANNED] (deps: 011)
     │         └── 013-bracket-optimizer  [PLANNED] (deps: 004, 012)

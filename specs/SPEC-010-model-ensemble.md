@@ -1,6 +1,6 @@
 # SPEC-010: Model Ensemble
 
-## Status: PLANNED
+## Status: COMPLETED
 
 ## Objective
 
@@ -154,17 +154,17 @@ optimal = ep_calculator.find_optimal_prediction(prediction)
 
 ## Acceptance Criteria
 
-- [ ] `predict()` retorna `MatchPrediction` con score_matrix que suma 1.0
-- [ ] Con un solo modelo, la predicción es idéntica al modelo individual
-- [ ] Con dos modelos y pesos (0.5, 0.5), la score_matrix es el promedio
-- [ ] `predict_from_individual_predictions()` acepta cualquier combinación de modelos
-- [ ] `optimize_weights()` minimiza Log Loss en validación
-- [ ] Los pesos optimizados están en [0, 1] y suman 1.0
-- [ ] `set_market_prediction()` acepta una score_matrix generada externamente
-- [ ] El ensamble funciona si algún modelo no está disponible (peso=0)
-- [ ] Test: ensamble de Dixon-Coles y mercado mejora Log Loss vs cada uno por separado
-- [ ] Test: `get_weights_dict()` retorna el estado actual
-- [ ] Type hints completos
+- [x] `predict()` retorna `MatchPrediction` con score_matrix que suma 1.0
+- [x] Con un solo modelo, la predicción es idéntica al modelo individual
+- [x] Con dos modelos y pesos (0.5, 0.5), la score_matrix es el promedio
+- [x] `predict_from_individual_predictions()` acepta cualquier combinación de modelos
+- [x] `optimize_weights()` minimiza Log Loss en validación
+- [x] Los pesos optimizados están en [0, 1] y suman 1.0
+- [x] `set_market_prediction()` acepta una score_matrix generada externamente
+- [x] El ensamble funciona si algún modelo no está disponible (peso=0)
+- [x] Test: ensamble de Dixon-Coles y mercado mejora Log Loss vs cada uno por separado
+- [x] Test: `get_weights_dict()` retorna el estado actual
+- [x] Type hints completos
 
 ## Files to Create
 
