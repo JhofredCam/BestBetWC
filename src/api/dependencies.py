@@ -4,7 +4,7 @@ from collections.abc import Generator
 
 from sqlalchemy.orm import Session
 
-from src.database.connection import get_db as _get_db
+from src.database.connection import get_session
 from src.models.dixon_coles import DixonColes
 from src.optimization.expected_score import ExpectedScoreCalculator
 from src.optimization.strategy import StrategySelector
@@ -12,7 +12,11 @@ from src.validation.backtesting import BacktestEngine
 
 
 def get_db() -> Generator[Session, None, None]:
-    return _get_db()
+    session = get_session()
+    try:
+        yield session
+    finally:
+        session.close()
 
 
 def get_dixon_coles() -> DixonColes:
