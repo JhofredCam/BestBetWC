@@ -65,7 +65,7 @@ class StrategySelector:
             risk_of_ruin = 1 - selected.prob_result - selected.prob_exact
 
         elif mode == StrategyMode.BALANCED:
-            selected = self._select_balanced(all_predictions, prediction)
+            selected = self._select_balanced(all_predictions)
             reasoning = "Posición media: estrategia equilibrada entre seguridad y diferenciación"
             risk_score = 0.5
             upside_potential = selected.ep_total * 1.2
@@ -103,7 +103,7 @@ class StrategySelector:
         return predictions[0]
 
     def _select_balanced(
-        self, predictions: list[ExpectedScoreResult], match_pred: MatchPrediction
+        self, predictions: list[ExpectedScoreResult]
     ) -> ExpectedScoreResult:
         top_5 = predictions[:5]
         return max(top_5, key=lambda p: p.ep_total)
