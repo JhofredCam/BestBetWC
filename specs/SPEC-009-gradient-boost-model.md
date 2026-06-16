@@ -1,6 +1,6 @@
 # SPEC-009: Gradient Boosting Model
 
-## Status: PLANNED
+## Status: COMPLETED
 
 ## Objective
 
