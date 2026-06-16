@@ -7,6 +7,7 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from src.api.routers import (
     backtesting,
+    data,
     matches,
     predictions,
     profiles,
@@ -51,6 +52,7 @@ def create_app() -> FastAPI:
     app.include_router(backtesting.router, prefix="/api/backtesting", tags=["Backtesting"])
     app.include_router(standings.router, prefix="/api/standings", tags=["Standings"])
     app.include_router(profiles.router, prefix="/api/profiles", tags=["Profiles"])
+    app.include_router(data.router, prefix="/api/data", tags=["Data"])
 
     return app
 
