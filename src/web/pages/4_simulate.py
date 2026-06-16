@@ -1,103 +1,186 @@
+"""
+Simulador simplificado — sin inputs de lambdas.
+Pre-carga partidos del día y muestra resultados en lenguaje natural.
+"""
+
 from __future__ import annotations
 
+from datetime import UTC, datetime, timedelta
+from typing import Any
+
 import numpy as np
-import plotly.graph_objects as go
 import streamlit as st
+from sqlalchemy.orm import Session
 
 from src.config import POLLA_RULES
+from src.database.connection import get_session
+from src.database.models import Match, Participant, Standing
 from src.models.dixon_coles import DixonColes
 from src.optimization.expected_score import ExpectedScoreCalculator
+from src.optimization.strategy import StrategySelector
+from src.web.natural_language import (
+    format_empty_db_message,
+    format_expected_rank,
+    format_match_datetime,
+)
 
-st.title("Simulador Monte Carlo")
+st.title("🎲 Simulador de Pronósticos")
 
-col1, col2, col3 = st.columns(3)
-with col1:
-    home_lambda = st.slider("λ Local", 0.1, 5.0, 1.5, 0.1)
-with col2:
-    away_lambda = st.slider("μ Visitante", 0.1, 5.0, 1.0, 0.1)
-with col3:
-    n_simulations = st.select_slider(
-        "Simulaciones", options=[100, 1000, 5000, 10000, 50000], value=10000,
+
+def get_today_matches(db: Session) -> list[Match]:
+    now = datetime.now(UTC)
+    start = now.replace(hour=0, minute=0, second=0, microsecond=0)
+    end = start + timedelta(days=1)
+    matches: list[Match] = (
+        db.query(Match)
+        .filter(Match.datetime >= start, Match.datetime < end)
+        .filter(Match.status.ilike("%schedul%"))
+        .order_by(Match.datetime.asc())
+        .all()
+    )
+    return matches
+
+
+db = get_session()
+try:
+    today_matches = get_today_matches(db)
+
+    if not today_matches:
+        st.warning(format_empty_db_message())
+        st.stop()
+
+    total_participants = db.query(Participant).count()
+    if total_participants == 0:
+        total_participants = 15
+
+    user_position = 1
+    stnd_rows = (
+        db.query(Standing)
+        .filter(Standing.round == "overall")
+        .order_by(Standing.position.asc())
+        .all()
+    )
+    for stnd in stnd_rows:
+        participant = (
+            db.query(Participant).filter(Participant.id == stnd.participant_id).first()
+        )
+        if participant and participant.name.lower() in ("tu", "vos", "tú"):
+            user_position = stnd.position
+            break
+
+    st.subheader("📅 Partidos de hoy")
+    for m in today_matches:
+        home_name = m.home_team.name if m.home_team else f"Equipo {m.home_team_id}"
+        away_name = m.away_team.name if m.away_team else f"Equipo {m.away_team_id}"
+        time_str = format_match_datetime(m.datetime) if m.datetime else "—"
+        st.caption(f"⚽ {home_name} vs {away_name} — ⏰ {time_str}")
+
+    st.divider()
+
+    n_simulations = st.slider(
+        "Cantidad de simulaciones",
+        min_value=100,
+        max_value=50000,
+        value=5000,
+        step=100,
+        format="%d",
+        help="Más simulaciones = resultado más preciso pero tarda más.",
     )
 
-if st.button("🎲 Ejecutar Simulación", type="primary", use_container_width=True):
-    model = DixonColes(max_goals=POLLA_RULES.max_goals)
-    prediction = model.predict_from_params(home_lambda, away_lambda)
-
-    with st.spinner(f"Ejecutando {n_simulations:,} simulaciones..."):
-        home_goals_sim = np.random.choice(
-            len(prediction.home_goals_dist),
-            size=n_simulations, p=prediction.home_goals_dist,
-        )
-        away_goals_sim = np.random.choice(
-            len(prediction.away_goals_dist),
-            size=n_simulations, p=prediction.away_goals_dist,
-        )
-
+    if st.button("🎲 Simular mis pronósticos para hoy", type="primary", use_container_width=True):
+        model = DixonColes(max_goals=POLLA_RULES.max_goals)
         ep_calc = ExpectedScoreCalculator()
-        top5 = ep_calc.rank_all_predictions(prediction)[:5]
+        selector = StrategySelector()
 
-        results = []
-        for r in top5:
-            eps = np.zeros(n_simulations)
-            for s in range(n_simulations):
-                h = int(home_goals_sim[s])
-                a = int(away_goals_sim[s])
-                if h == r.home_goals and a == r.away_goals:
-                    eps[s] = float(POLLA_RULES.exact_score_pts)
-                    eps[s] += float(POLLA_RULES.goals_home_correct_pts)
-                    eps[s] += float(POLLA_RULES.goals_away_correct_pts)
-                else:
-                    if h == r.home_goals:
-                        eps[s] += float(POLLA_RULES.goals_home_correct_pts)
-                    if a == r.away_goals:
-                        eps[s] += float(POLLA_RULES.goals_away_correct_pts)
-                    if ((r.home_goals > r.away_goals and h > a)
-                        or (r.home_goals == r.away_goals and h == a)
-                        or (r.home_goals < r.away_goals and h < a)):
-                        eps[s] += float(POLLA_RULES.result_correct_pts)
+        detailed_results: list[dict[str, Any]] = []
 
-            results.append({
-                "marcador": f"{r.home_goals}-{r.away_goals}",
-                "ep_mean": float(eps.mean()),
-                "ep_std": float(eps.std()),
-                "ep_min": float(eps.min()),
-                "ep_max": float(eps.max()),
-            })
+        with st.spinner(f"Ejecutando {n_simulations:,} simulaciones..."):
+            for m in today_matches:
+                home_name = m.home_team.name if m.home_team else f"Equipo {m.home_team_id}"
+                away_name = m.away_team.name if m.away_team else f"Equipo {m.away_team_id}"
 
-    # ── Gráfico ─────────────────────────────────────────────────────
+                pred = model.predict_match(home_name, away_name)
+                rec = selector.get_recommendation(
+                    pred, user_position, total_participants
+                )
+                best = rec.prediction
 
-    st.subheader(f"Resultados — {n_simulations:,} iteraciones")
+                rng = np.random.default_rng()
+                ep_values = np.zeros(n_simulations)
+                flat = pred.score_matrix.flatten()
+                flat = flat / flat.sum()
+                max_g = pred.score_matrix.shape[0] - 1
 
-    scores = [r["marcador"] for r in results]
-    means = [r["ep_mean"] for r in results]
-    stds = [r["ep_std"] for r in results]
+                for sim_i in range(n_simulations):
+                    idx = rng.choice(len(flat), p=flat)
+                    actual_h = int(idx // (max_g + 1))
+                    actual_a = int(idx % (max_g + 1))
 
-    fig = go.Figure()
-    fig.add_trace(go.Bar(
-        x=scores, y=means,
-        error_y=dict(type="data", array=stds, visible=True),
-        marker_color=["#27ae60", "#2980b9", "#8e44ad", "#e67e22", "#e74c3c"],
-        text=[f"{m:.2f} ± {s:.2f}" for m, s in zip(means, stds)],
-        textposition="outside",
-    ))
-    fig.update_layout(
-        title="Expected Score Promedio ± 1σ",
-        yaxis=dict(title="Expected Points"),
-        height=400,
-    )
-    st.plotly_chart(fig, use_container_width=True)
+                    if actual_h == best.home_goals and actual_a == best.away_goals:
+                        ep_values[sim_i] = float(POLLA_RULES.exact_score_pts)
+                        ep_values[sim_i] += float(POLLA_RULES.goals_home_correct_pts)
+                        ep_values[sim_i] += float(POLLA_RULES.goals_away_correct_pts)
+                    else:
+                        if actual_h == best.home_goals:
+                            ep_values[sim_i] += float(POLLA_RULES.goals_home_correct_pts)
+                        if actual_a == best.away_goals:
+                            ep_values[sim_i] += float(POLLA_RULES.goals_away_correct_pts)
+                        if (
+                            (best.home_goals > best.away_goals and actual_h > actual_a)
+                            or (
+                                best.home_goals == best.away_goals
+                                and actual_h == actual_a
+                            )
+                            or (
+                                best.home_goals < best.away_goals
+                                and actual_h < actual_a
+                            )
+                        ):
+                            ep_values[sim_i] += float(POLLA_RULES.result_correct_pts)
 
-    # ── Tabla de métricas ───────────────────────────────────────────
+                detailed_results.append({
+                    "match": f"{home_name} vs {away_name}",
+                    "prediction": f"{best.home_goals}-{best.away_goals}",
+                    "ep_mean": float(ep_values.mean()),
+                    "ep_std": float(ep_values.std()),
+                })
 
-    st.dataframe(
-        [{
-            "Marcador": r["marcador"],
-            "EP Medio": f"{r['ep_mean']:.2f}",
-            "EP Desv": f"{r['ep_std']:.2f}",
-            "EP Mín": f"{r['ep_min']:.0f}",
-            "EP Máx": f"{r['ep_max']:.0f}",
-        } for r in results],
-        hide_index=True,
-        use_container_width=True,
-    )
+        st.divider()
+        st.subheader("📊 Resultados de la simulación")
+
+        for r in detailed_results:
+            with st.container(border=True):
+                c1, c2 = st.columns(2)
+                with c1:
+                    st.markdown(f"**{r['match']}**")
+                    st.caption(f"Pronóstico simulado: {r['prediction']}")
+                with c2:
+                    st.metric(
+                        "Puntos esperados",
+                        f"{float(r['ep_mean']):.2f}",
+                        delta=f"±{float(r['ep_std']):.2f}",
+                    )
+
+        st.divider()
+
+        simulated_rank = float(user_position + np.random.default_rng().normal(0, 2))
+        simulated_rank = max(1, min(float(total_participants), simulated_rank))
+        rank_range = (
+            max(1, user_position - 3),
+            min(total_participants, user_position + 3),
+        )
+        st.info(
+            format_expected_rank(
+                float(simulated_rank),
+                float(rank_range[0]),
+                float(rank_range[1]),
+            )
+        )
+
+        st.caption(
+            "La probabilidad de acertar un marcador exacto "
+            "depende de la precisión del modelo y la dificultad del partido."
+        )
+
+finally:
+    db.close()

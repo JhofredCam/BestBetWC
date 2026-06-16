@@ -7,13 +7,11 @@ from __future__ import annotations
 
 import streamlit as st
 
-from src.web.state import init_state
-
 st.set_page_config(
     page_title="BestBetWC",
     page_icon="⚽",
     layout="wide",
-    initial_sidebar_state="expanded",
+    initial_sidebar_state="collapsed",
 )
 
 st.logo(
@@ -21,40 +19,27 @@ st.logo(
     size="large",
 )
 
-init_state()
-
-# ── Sidebar ────────────────────────────────────────────────────────
+# ── Sidebar mínimo ──────────────────────────────────────────────────
 
 with st.sidebar:
     st.title("⚽ BestBetWC")
     st.caption("Mundial 2026")
 
-    position = st.selectbox(
-        "Tu posición actual",
-        options=list(range(1, 16)),
-        index=2,
-        format_func=lambda p: (
-            f"{p}° {'🥇' if p == 1 else '🥈' if p == 2 else '🥉' if p == 3 else ''}"
-        ),
-    )
-    st.session_state["position"] = position
-
     st.divider()
 
-    total_participants = st.number_input(
-        "Participantes", min_value=2, max_value=100, value=15,
-    )
-    st.session_state["total_participants"] = total_participants
+    if st.button("🔄 Actualizar datos", use_container_width=True):
+        st.cache_data.clear()
+        st.rerun()
 
     st.divider()
-    st.caption("v0.2.0 — Fase 2")
+    st.caption("v0.3.0 — UX Simplificada")
 
 # ── Navegación ─────────────────────────────────────────────────────
 
 pages = {
     "Dashboard": "pages/1_dashboard.py",
-    "Predecir Partido": "pages/2_predict.py",
-    "Estrategia": "pages/3_strategy.py",
+    "Análisis de Partido": "pages/2_predict.py",
+    "Tabla de Posiciones": "pages/3_strategy.py",
     "Simular": "pages/4_simulate.py",
     "Clasificación": "pages/5_standings.py",
     "Perfiles": "pages/6_profiles.py",

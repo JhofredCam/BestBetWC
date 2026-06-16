@@ -119,6 +119,40 @@ async def predict_match_by_id(
     )
 
 
+@router.get("/match/{match_id}/analysis")
+async def get_match_analysis(
+    match_id: int,
+    position: int = Query(default=1, ge=1, le=15),
+    db: Session = Depends(get_db),
+    dc_model: DixonColes = Depends(get_dixon_coles),
+    ep_calculator: ExpectedScoreCalculator = Depends(get_ep_calculator),
+    strategy_selector: StrategySelector = Depends(get_strategy_selector),
+) -> PredictionResponse:
+    match = db.query(Match).filter(Match.id == match_id).first()
+    if match is None:
+        raise HTTPException(status_code=404, detail=f"Match {match_id} not found")
+
+    home_team = match.home_team.name if match.home_team else f"Team{match.home_team_id}"
+    away_team = match.away_team.name if match.away_team else f"Team{match.away_team_id}"
+    venue = match.venue
+    match_round = match.round
+    match_group = match.group
+
+    pred = dc_model.predict_match(home_team, away_team)
+    response = _build_prediction_response(
+        home_team=home_team,
+        away_team=away_team,
+        pred=pred,
+        ep_calculator=ep_calculator,
+        strategy_selector=strategy_selector,
+        current_position=position,
+    )
+    response.venue = venue
+    response.round = match_round
+    response.group = match_group
+    return response
+
+
 @router.get("/upcoming", response_model=list[PredictionResponse])
 async def predict_upcoming_matches(
     position: int = Query(default=1, ge=1, le=15),

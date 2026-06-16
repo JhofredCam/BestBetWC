@@ -72,6 +72,9 @@ class PredictionResponse(BaseModel):
     top_predictions: list[ScoreProbability]
     recommendation: StrategyRecommendationResponse
     score_matrix: list[list[float]]
+    venue: str | None = None
+    round: str | None = None
+    group: str | None = None
 
 
 class StrategyModesResponse(BaseModel):

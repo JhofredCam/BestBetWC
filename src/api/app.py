@@ -10,6 +10,7 @@ from src.api.routers import (
     backtesting,
     data,
     matches,
+    participants,
     predictions,
     profiles,
     simulation,
@@ -56,6 +57,7 @@ def create_app() -> FastAPI:
     app.include_router(standings.router, prefix="/api/standings", tags=["Standings"])
     app.include_router(profiles.router, prefix="/api/profiles", tags=["Profiles"])
     app.include_router(data.router, prefix="/api/data", tags=["Data"])
+    app.include_router(participants.router, prefix="/api/participants", tags=["Participants"])
 
     return app
 

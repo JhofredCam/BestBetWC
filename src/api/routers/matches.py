@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from datetime import UTC, datetime, timedelta
+
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.orm import Session
 
@@ -8,6 +10,21 @@ from src.api.schemas import MatchSummary
 from src.database.models import Match
 
 router = APIRouter()
+
+
+def _match_to_summary(m: Match) -> MatchSummary:
+    home_team = m.home_team.name if m.home_team else f"Team{m.home_team_id}"
+    away_team = m.away_team.name if m.away_team else f"Team{m.away_team_id}"
+    return MatchSummary(
+        id=m.id,
+        home_team=home_team,
+        away_team=away_team,
+        datetime=m.datetime,
+        round=m.round,
+        status=m.status,
+        home_score=m.home_score,
+        away_score=m.away_score,
+    )
 
 
 @router.get("/", response_model=list[MatchSummary])
@@ -23,24 +40,41 @@ async def get_matches(
     if status:
         query = query.filter(Match.status == status)
     matches = query.order_by(Match.datetime.asc()).limit(limit).all()
+    return [_match_to_summary(m) for m in matches]
 
-    results: list[MatchSummary] = []
-    for m in matches:
-        home_team = m.home_team.name if m.home_team else f"Team{m.home_team_id}"
-        away_team = m.away_team.name if m.away_team else f"Team{m.away_team_id}"
-        results.append(
-            MatchSummary(
-                id=m.id,
-                home_team=home_team,
-                away_team=away_team,
-                datetime=m.datetime,
-                round=m.round,
-                status=m.status,
-                home_score=m.home_score,
-                away_score=m.away_score,
-            )
-        )
-    return results
+
+@router.get("/today", response_model=list[MatchSummary])
+async def get_today_matches(
+    db: Session = Depends(get_db),
+) -> list[MatchSummary]:
+    now = datetime.now(UTC)
+    start = now.replace(hour=0, minute=0, second=0, microsecond=0)
+    end = start + timedelta(days=1)
+    matches = (
+        db.query(Match)
+        .filter(Match.datetime >= start, Match.datetime < end)
+        .filter(Match.status.ilike("%schedul%"))
+        .order_by(Match.datetime.asc())
+        .all()
+    )
+    return [_match_to_summary(m) for m in matches]
+
+
+@router.get("/tomorrow", response_model=list[MatchSummary])
+async def get_tomorrow_matches(
+    db: Session = Depends(get_db),
+) -> list[MatchSummary]:
+    now = datetime.now(UTC)
+    start = now.replace(hour=0, minute=0, second=0, microsecond=0) + timedelta(days=1)
+    end = start + timedelta(days=1)
+    matches = (
+        db.query(Match)
+        .filter(Match.datetime >= start, Match.datetime < end)
+        .filter(Match.status.ilike("%schedul%"))
+        .order_by(Match.datetime.asc())
+        .all()
+    )
+    return [_match_to_summary(m) for m in matches]
 
 
 @router.get("/{match_id}", response_model=MatchSummary)
@@ -51,16 +85,4 @@ async def get_match(
     match = db.query(Match).filter(Match.id == match_id).first()
     if match is None:
         raise HTTPException(status_code=404, detail=f"Match {match_id} not found")
-
-    home_team = match.home_team.name if match.home_team else f"Team{match.home_team_id}"
-    away_team = match.away_team.name if match.away_team else f"Team{match.away_team_id}"
-    return MatchSummary(
-        id=match.id,
-        home_team=home_team,
-        away_team=away_team,
-        datetime=match.datetime,
-        round=match.round,
-        status=match.status,
-        home_score=match.home_score,
-        away_score=match.away_score,
-    )
+    return _match_to_summary(match)

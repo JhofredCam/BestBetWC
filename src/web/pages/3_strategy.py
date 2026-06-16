@@ -1,110 +1,196 @@
+"""
+Tabla de Posiciones editable con st.data_editor.
+Permite CRUD de participantes y recalcula estrategia automáticamente.
+"""
+
 from __future__ import annotations
 
-import plotly.graph_objects as go
+from typing import Any
+
 import streamlit as st
+from sqlalchemy.orm import Session
 
-from src.optimization.strategy import StrategyMode, StrategySelector
+from src.database.connection import get_session
+from src.database.models import Participant, Standing
+from src.optimization.strategy import StrategySelector
+from src.web.natural_language import strategy_advice
 
-st.title("Estrategia Adaptativa")
+st.title("📊 Tabla de Posiciones")
 
-st.markdown("""
-El sistema ajusta automáticamente tu estrategia según tu posición en la tabla.
-La **estrategia óptima** no es la misma si vas liderando que si vas último:
-quien lidera debe minimizar riesgo; quien persigue debe diferenciarse.
-""")
-
-# ── Simulador de posición ──────────────────────────────────────────
-
-position = st.slider(
-    "Simula tu posición en la tabla",
-    min_value=1, max_value=15, value=3,
-    format="%d°",
+st.markdown(
+    "Editá los nombres y puntos de los participantes. "
+    "El sistema recalcula automáticamente tu estrategia."
 )
 
-selector = StrategySelector()
-mode = selector.determine_mode(position, 15)
 
-# ── Modos de estrategia ────────────────────────────────────────────
+def load_standings(db: Session) -> list[dict[str, Any]]:
+    participants = db.query(Participant).all()
+    rows: list[dict[str, Any]] = []
+    for p in participants:
+        standing = (
+            db.query(Standing)
+            .filter(Standing.participant_id == p.id)
+            .filter(Standing.round == "overall")
+            .first()
+        )
+        rows.append({
+            "Pos": standing.position if standing else 0,
+            "id": p.id,
+            "Nombre": p.name,
+            "Puntos": standing.total_points if standing else 0,
+            "SosVos": True,
+        })
+    rows.sort(key=lambda r: r["Puntos"], reverse=True)
+    for i, r in enumerate(rows):
+        r["Pos"] = i + 1
+    return rows
 
-modes_info = {
-    StrategyMode.MINIMIZE_RISK: {
-        "title": "🛡️ Minimizar Riesgo",
-        "description": "Eliges marcadores de alta probabilidad. Evitas diferenciación innecesaria.",
-        "color": "#2ecc71",
-        "risk": "Bajo",
-        "position": "1°",
-    },
-    StrategyMode.BALANCED: {
-        "title": "⚖️ Balanceado",
-        "description": "Mezclas predicciones seguras con algunas apuestas diferenciadas.",
-        "color": "#3498db",
-        "risk": "Medio",
-        "position": "2°-5°",
-    },
-    StrategyMode.DIFFERENTIATION: {
-        "title": "🎯 Diferenciación",
-        "description": "Buscas marcadores poco populares con alta probabilidad real de ocurrir.",
-        "color": "#e67e22",
-        "risk": "Medio-Alto",
-        "position": "6°-10°",
-    },
-    StrategyMode.HIGH_RISK: {
-        "title": "🚀 Alto Riesgo",
-        "description": "Apuestas agresivas: máximo upside, aceptando alta varianza.",
-        "color": "#e74c3c",
-        "risk": "Alto",
-        "position": "11°-15°",
-    },
-}
 
-cols = st.columns(4)
-for i, (mode_enum, info) in enumerate(modes_info.items()):
-    with cols[i]:
-        is_active = mode_enum == mode
-        st.markdown(f"""
-        <div style="border: 2px solid {info['color']};
-                    border-radius: 10px; padding: 15px;
-                    {'background-color: rgba(255,255,255,0.05)' if not is_active
-                     else 'background-color: ' + info['color'] + '22'};
-                    {'box-shadow: 0 0 15px ' + info['color'] + '44' if is_active else ''}">
-            <h4>{info['title']}</h4>
-            <p style="font-size: 0.85em; color: #888;">{info['description']}</p>
-            <p style="font-size: 0.8em;">Posición: <strong>{info['position']}</strong></p>
-            <p style="font-size: 0.8em;">Riesgo: <strong>{info['risk']}</strong></p>
-        </div>
-        """, unsafe_allow_html=True)
+def apply_changes(
+    db: Session,
+    new_name: str,
+    changed_rows: list[dict[str, Any]],
+    original_rows: list[dict[str, Any]],
+) -> None:
+    original_ids = {r["id"] for r in original_rows}
+    orig_by_id = {r["id"]: r for r in original_rows}
 
-# ── Visualización de rangos ────────────────────────────────────────
+    for row in changed_rows:
+        pid = row["id"]
+        if pid not in original_ids:
+            new_participant = Participant(name=row["Nombre"])
+            db.add(new_participant)
+            db.flush()
+            new_standing = Standing(
+                participant_id=new_participant.id,
+                round="overall",
+                total_points=row["Puntos"],
+                position=row["Pos"],
+            )
+            db.add(new_standing)
+        else:
+            orig = orig_by_id[pid]
+            if orig["Nombre"] != row["Nombre"] or orig["Puntos"] != row["Puntos"]:
+                existing = db.query(Participant).filter(Participant.id == pid).first()
+                if existing:
+                    existing.name = row["Nombre"]
+                standing = (
+                    db.query(Standing)
+                    .filter(Standing.participant_id == pid)
+                    .filter(Standing.round == "overall")
+                    .first()
+                )
+                if standing:
+                    standing.total_points = row["Puntos"]
+                    standing.position = row["Pos"]
+                elif row["Puntos"] > 0:
+                    standing = Standing(
+                        participant_id=pid,
+                        round="overall",
+                        total_points=row["Puntos"],
+                        position=row["Pos"],
+                    )
+                    db.add(standing)
 
-st.subheader("Mapa de Estrategias")
+    for pid in original_ids - {r["id"] for r in changed_rows}:
+        db.query(Standing).filter(Standing.participant_id == pid).delete()
+        db.query(Participant).filter(Participant.id == pid).delete()
 
-fig = go.Figure()
-ranges = [
-    (1, 1, "Minimizar Riesgo", "#2ecc71"),
-    (2, 5, "Balanceado", "#3498db"),
-    (6, 10, "Diferenciación", "#e67e22"),
-    (11, 15, "Alto Riesgo", "#e74c3c"),
-]
-for start, end, label, color in ranges:
-    fig.add_trace(go.Bar(
-        y=[label], x=[end - start + 1],
-        orientation="h", marker_color=color,
-        opacity=0.7 if (start <= position <= end) else 0.3,
-        text=f"Puestos {start}-{end}",
-        textposition="inside",
-    ))
+    if new_name.strip():
+        p = Participant(name=new_name.strip())
+        db.add(p)
+        db.flush()
+        new_pos = db.query(Participant).count()
+        st = Standing(
+            participant_id=p.id,
+            round="overall",
+            total_points=0,
+            position=new_pos,
+        )
+        db.add(st)
 
-fig.update_layout(
-    xaxis=dict(title="Número de posiciones en este rango"),
-    showlegend=False,
-    height=200,
-)
-st.plotly_chart(fig, use_container_width=True)
+    db.commit()
 
-# ── Tu modo actual ─────────────────────────────────────────────────
 
-active = modes_info[mode]
-st.success(
-    f"**Tu estrategia actual ({position}°): {active['title']}**\n\n"
-    f"Riesgo: {active['risk']} · {active['description']}"
-)
+def render() -> None:
+    db = get_session()
+    try:
+        current_rows = load_standings(db)
+
+        if not current_rows:
+            st.info(
+                "No hay participantes cargados todavía. "
+                "Agregá el primero usando el botón **Agregar participante** abajo."
+            )
+
+        edited_df = st.data_editor(
+            current_rows,
+            column_config={
+                "Pos": st.column_config.NumberColumn("#", width="small", disabled=True),
+                "id": None,
+                "Nombre": st.column_config.TextColumn("Nombre", width="medium"),
+                "Puntos": st.column_config.NumberColumn("Puntos", format="%d", width="small"),
+                "SosVos": st.column_config.CheckboxColumn(
+                    "¿Sos vos?",
+                    width="small",
+                    help="Marcá esta casilla para identificarte",
+                ),
+            },
+            num_rows="dynamic",
+            hide_index=True,
+            use_container_width=True,
+            key="standings_editor",
+        )
+
+        new_name = st.text_input(
+            "Nombre del nuevo participante",
+            key="new_participant_name",
+            placeholder="Ej: Juan Pérez",
+        )
+        if st.button("➕ Agregar participante"):
+            if new_name.strip():
+                apply_changes(db, new_name.strip(), [], [])
+                st.cache_data.clear()
+                st.rerun()
+            else:
+                st.warning("Escribí un nombre para agregar.")
+
+        if st.button("💾 Guardar cambios", type="primary"):
+            apply_changes(
+                db,
+                new_name,
+                [row for row in edited_df if row.get("id")],
+                current_rows,
+            )
+            st.cache_data.clear()
+            st.success("✅ Cambios guardados.")
+            st.rerun()
+
+        st.divider()
+
+        st.subheader("🎯 Tu estrategia actual")
+
+        user_rows = [r for r in current_rows if r.get("SosVos")]
+        if user_rows:
+            user_row = user_rows[0]
+            user_pos = user_row["Pos"]
+            total = len(current_rows)
+            selector = StrategySelector()
+            mode = selector.determine_mode(user_pos, max(total, 15))
+            advice = strategy_advice(mode.value, user_pos)
+            st.info(advice)
+            st.caption(
+                f"Tu posición: **{user_pos}° de {max(total, 15)}** — "
+                f"Modo: **{mode.value.replace('_', ' ').title()}**"
+            )
+        else:
+            st.info(
+                "Marcá la casilla **¿Sos vos?** en un participante para ver "
+                "recomendaciones de estrategia personalizadas."
+            )
+
+    finally:
+        db.close()
+
+
+render()

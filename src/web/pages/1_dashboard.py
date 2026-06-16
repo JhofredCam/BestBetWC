@@ -1,127 +1,157 @@
+"""
+Dashboard — Partidos de hoy y mañana con sugerencias automáticas.
+"""
+
 from __future__ import annotations
 
-import plotly.graph_objects as go
+from datetime import UTC, datetime, timedelta
+from typing import Any
+
 import streamlit as st
+from sqlalchemy.orm import Session
 
 from src.config import POLLA_RULES
+from src.database.connection import get_session
+from src.database.models import Match, Participant, Standing
 from src.models.dixon_coles import DixonColes
 from src.optimization.expected_score import ExpectedScoreCalculator
 from src.optimization.strategy import StrategySelector
-from src.web.state import get_position
+from src.web.natural_language import (
+    explain_recommendation,
+    format_empty_db_message,
+    format_match_datetime,
+)
 
-st.title("Dashboard")
+st.title("⚽ Partidos de Hoy y Mañana")
 
-position = get_position()
 
-# ── Métricas principales ───────────────────────────────────────────
+@st.cache_resource
+def get_components() -> dict[str, Any]:
+    return {
+        "model": DixonColes(max_goals=POLLA_RULES.max_goals),
+        "ep_calc": ExpectedScoreCalculator(),
+        "selector": StrategySelector(),
+    }
 
-col1, col2, col3, col4 = st.columns(4)
-with col1:
-    st.metric("Posición", f"#{position} de {POLLA_RULES.num_participants}",
-              delta=None, help="Tu posición actual en la polla")
-with col2:
-    st.metric("Puntos Totales", "142 pts",
-              delta="+8 vs fecha anterior", help="Puntos acumulados")
-with col3:
-    st.metric("Win Probability", "18.5%",
-              delta="+2.1%", help="Probabilidad de ganar la polla")
-with col4:
-    st.metric("Próximo Partido", "BRA vs ARG",
-              delta="12 Jun", help="Fecha del próximo partido")
 
-# ── Próximo partido - predicción rápida ────────────────────────────
+def get_user_position(db: Session) -> int:
+    participants = db.query(Participant).all()
+    if not participants:
+        return 1
+    standings = (
+        db.query(Standing)
+        .filter(Standing.round == "overall")
+        .order_by(Standing.position.asc())
+        .all()
+    )
+    if not standings:
+        return 1
+    return standings[0].position if standings else 1
 
-st.subheader("Pronóstico Recomendado")
 
-model = DixonColes(max_goals=POLLA_RULES.max_goals)
-prediction = model.predict_from_params(lambda_h=1.8, mu_a=1.2)
-
-col1, col2 = st.columns([1, 2])
-with col1:
-    ep_calc = ExpectedScoreCalculator()
-    selector = StrategySelector()
-    recommendation = selector.get_recommendation(
-        prediction, position, POLLA_RULES.num_participants,
+def get_matches_for_date(db: Session, date: datetime) -> list[Match]:
+    start = date.replace(hour=0, minute=0, second=0, microsecond=0)
+    end = start + timedelta(days=1)
+    return (
+        db.query(Match)
+        .filter(Match.datetime >= start, Match.datetime < end)
+        .filter(Match.status.ilike("%schedul%"))
+        .order_by(Match.datetime.asc())
+        .all()
     )
 
-    st.metric(
-        label="Marcador Óptimo",
-        value=f"{recommendation.prediction.home_goals} - {recommendation.prediction.away_goals}",
-        delta=f"EP: {recommendation.prediction.ep_total:.2f} pts",
-    )
 
-    st.caption(f"Estrategia: **{recommendation.strategy_mode.value}**")
-    st.caption(recommendation.reasoning)
+def render_match_card(
+    match: Match,
+    model: DixonColes,
+    ep_calc: ExpectedScoreCalculator,
+    selector: StrategySelector,
+    position: int,
+) -> None:
+    home_name = match.home_team.name if match.home_team else f"Equipo {match.home_team_id}"
+    away_name = match.away_team.name if match.away_team else f"Equipo {match.away_team_id}"
 
-    st.metric("Risk Score", f"{recommendation.risk_score:.0%}")
-    st.metric("Upside Potential", f"{recommendation.upside_potential:.2f} pts")
+    time_str = format_match_datetime(match.datetime) if match.datetime else "—"
+    venue_str = match.venue or "—"
+    round_str = match.round or "—"
 
-with col2:
-    fig = go.Figure(data=[
-        go.Bar(
-            x=["Victoria\nLocal", "Empate", "Victoria\nVisitante"],
-            y=[prediction.home_win_prob, prediction.draw_prob, prediction.away_win_prob],
-            marker_color=["#2ecc71", "#f1c40f", "#e74c3c"],
-            text=[f"{p:.1%}" for p in [
-                prediction.home_win_prob, prediction.draw_prob, prediction.away_win_prob
-            ]],
-            textposition="auto",
+    try:
+        pred = model.predict_match(home_name, away_name)
+        rec = selector.get_recommendation(pred, position, POLLA_RULES.num_participants)
+        top_result = rec.prediction
+        score = f"{top_result.home_goals}-{top_result.away_goals}"
+        explanation = explain_recommendation(
+            top_result.home_goals,
+            top_result.away_goals,
+            top_result.prob_exact,
+            top_result.ownership_estimate,
         )
-    ])
-    fig.update_layout(
-        title="Probabilidades de Resultado",
-        yaxis=dict(title="Probabilidad", tickformat=".0%"),
-        height=300,
-    )
-    st.plotly_chart(fig, use_container_width=True)
+    except Exception:
+        score = "—"
+        explanation = "No se pudo calcular el pronóstico."
 
-# ── Top marcadores por EP ──────────────────────────────────────────
+    with st.container(border=True):
+        cols = st.columns([3, 1])
+        with cols[0]:
+            st.subheader(f"{home_name} vs {away_name}")
+            st.caption(f"⏰ {time_str}  |  📍 {venue_str}  |  🏆 {round_str}")
 
-st.subheader("Top 5 Marcadores por Expected Score")
+        with cols[1]:
+            st.metric("📊 Sugerencia", score)
 
-ranked = ep_calc.rank_all_predictions(prediction)[:5]
+        st.caption(f"💡 {explanation}")
 
-scores = [f"{r.home_goals}-{r.away_goals}" for r in ranked]
+        btn_col1, btn_col2 = st.columns(2)
+        with btn_col1:
+            if st.button("📋 Ver análisis completo", key=f"analyze_{match.id}"):
+                st.session_state["analyze_match_id"] = match.id
+                st.switch_page("pages/2_predict.py")
+        with btn_col2:
+            if st.button("📝 Simular pronóstico", key=f"sim_{match.id}"):
+                st.session_state["sim_match_id"] = match.id
+                st.switch_page("pages/4_simulate.py")
 
-fig2 = go.Figure(data=[
-    go.Bar(name="EP Exacto", x=scores, y=[r.ep_exact for r in ranked],
-           marker_color="#27ae60"),
-    go.Bar(name="EP Resultado", x=scores, y=[r.ep_result for r in ranked],
-           marker_color="#2980b9"),
-    go.Bar(name="EP Goles", x=scores,
-           y=[r.ep_goals_home + r.ep_goals_away for r in ranked],
-           marker_color="#8e44ad"),
-    go.Bar(name="EP Único", x=scores, y=[r.ep_unique for r in ranked],
-           marker_color="#e67e22"),
-])
-fig2.update_layout(
-    title="Componentes del Expected Score",
-    barmode="stack",
-    yaxis=dict(title="Expected Points"),
-    height=300,
-)
-st.plotly_chart(fig2, use_container_width=True)
 
-# ── Mini clasificación ─────────────────────────────────────────────
+# ── Main ────────────────────────────────────────────────────────────
 
-st.subheader("Top 5 Clasificación")
+db = get_session()
+try:
+    now = datetime.now(UTC)
+    today_matches = get_matches_for_date(db, now)
+    tomorrow = now + timedelta(days=1)
+    tomorrow_matches = get_matches_for_date(db, tomorrow)
 
-standings_data = [
-    {"pos": 1, "nombre": "Carlos", "pts": 156, "exactos": 5, "delta": "—"},
-    {"pos": 2, "nombre": "María", "pts": 148, "exactos": 4, "delta": "-8"},
-    {"pos": 3, "nombre": "Tú", "pts": 142, "exactos": 3, "delta": "-14"},
-    {"pos": 4, "nombre": "Juan", "pts": 138, "exactos": 2, "delta": "-18"},
-    {"pos": 5, "nombre": "Ana", "pts": 135, "exactos": 3, "delta": "-21"},
-]
-st.dataframe(
-    standings_data,
-    column_config={
-        "pos": st.column_config.NumberColumn("#", width="small"),
-        "nombre": "Participante",
-        "pts": st.column_config.NumberColumn("Puntos", format="%d"),
-        "exactos": st.column_config.NumberColumn("Exactos", width="small"),
-        "delta": st.column_config.TextColumn("Δ", width="small"),
-    },
-    hide_index=True,
-    use_container_width=True,
-)
+    all_matches = today_matches + tomorrow_matches
+
+    if not all_matches:
+        st.warning(format_empty_db_message())
+        st.info(
+            "También podés agregar participantes y posiciones en la página "
+            "**Tabla de Posiciones** para empezar."
+        )
+    else:
+        comps = get_components()
+        position = get_user_position(db)
+        total_participants = db.query(Participant).count()
+
+        if total_participants > 0:
+            st.caption(
+                f"Posición actual: **{position}° de {total_participants}** participantes"
+            )
+
+        if today_matches:
+            st.subheader(f"📅 Hoy — {now.day} de {now.strftime('%B')}")
+            for m in today_matches:
+                render_match_card(
+                    m, comps["model"], comps["ep_calc"], comps["selector"], position
+                )
+
+        if tomorrow_matches:
+            st.subheader(f"📅 Mañana — {tomorrow.day} de {tomorrow.strftime('%B')}")
+            for m in tomorrow_matches:
+                render_match_card(
+                    m, comps["model"], comps["ep_calc"], comps["selector"], position
+                )
+
+finally:
+    db.close()

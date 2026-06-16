@@ -1,124 +1,200 @@
+"""
+Match Detail — Predicción completa sin inputs técnicos.
+Toma match_id como query param o de session_state.
+"""
+
 from __future__ import annotations
 
-import plotly.express as px
 import plotly.graph_objects as go
 import streamlit as st
 
 from src.config import POLLA_RULES
+from src.database.connection import get_session
+from src.database.models import Match, Participant, Standing
 from src.models.dixon_coles import DixonColes
 from src.optimization.expected_score import ExpectedScoreCalculator
 from src.optimization.strategy import StrategySelector
+from src.web.natural_language import (
+    explain_recommendation,
+    format_empty_db_message,
+    format_match_context,
+    format_match_datetime,
+    format_percentage,
+    strategy_advice,
+)
 
-st.title("Predecir Partido")
+# ── Obtener match_id ────────────────────────────────────────────────
 
-# ── Formulario ─────────────────────────────────────────────────────
+match_id = None
+if "analyze_match_id" in st.session_state:
+    match_id = st.session_state.pop("analyze_match_id")
+elif "match_id" in st.query_params:
+    try:
+        match_id = int(st.query_params["match_id"])
+    except (ValueError, TypeError):
+        pass
 
-col1, col2, col3 = st.columns(3)
-with col1:
-    home_team = st.text_input("Equipo Local", "Brasil")
-    home_lambda = st.slider("Goles esperados Local (λ)", 0.1, 5.0, 1.8, 0.1)
-with col2:
-    away_team = st.text_input("Equipo Visitante", "Argentina")
-    away_lambda = st.slider("Goles esperados Visitante (μ)", 0.1, 5.0, 1.2, 0.1)
-with col3:
-    position = st.selectbox(
-        "Tu Posición",
-        options=list(range(1, 16)),
-        index=2,
-        format_func=lambda p: f"{p}° {'🥇 Líder' if p == 1 else '🥈' if p == 2 else ''}",
+if match_id is None:
+    st.title("📊 Análisis de Partido")
+    st.warning(
+        "Esta página recibe un `match_id`. "
+        "Volvé al **Dashboard** y hacé clic en **Ver análisis completo** "
+        "junto al partido que querés analizar."
     )
-
-if st.button("⚽ Calcular Pronóstico Óptimo", type="primary", use_container_width=True):
-
-    model = DixonColes(max_goals=POLLA_RULES.max_goals)
-    prediction = model.predict_from_params(home_lambda, away_lambda)
-    ep_calc = ExpectedScoreCalculator()
-    ranked = ep_calc.rank_all_predictions(prediction)
-
-    selector = StrategySelector()
-    recommendation = selector.get_recommendation(
-        prediction, position, POLLA_RULES.num_participants,
+    st.info(
+        "También podés pasar `?match_id=1` en la URL de esta página (reemplazá `1` por el ID real)."
     )
+    st.stop()
 
-    # ── Resultados ─────────────────────────────────────────────────
+# ── Cargar datos del partido ────────────────────────────────────────
+
+db = get_session()
+try:
+    match = db.query(Match).filter(Match.id == match_id).first()
+    if match is None:
+        st.error(f"Partido #{match_id} no encontrado en la base de datos.")
+        st.info(format_empty_db_message())
+        st.stop()
+
+    home_name = match.home_team.name if match.home_team else f"Equipo {match.home_team_id}"
+    away_name = match.away_team.name if match.away_team else f"Equipo {match.away_team_id}"
+
+    st.title(f"{home_name} vs {away_name}")
+
+    col1, col2 = st.columns(2)
+    with col1:
+        if match.datetime:
+            st.metric("Fecha y Hora", format_match_datetime(match.datetime))
+    with col2:
+        st.metric("Lugar", match.venue or "Sin definir")
+
+    col3, col4 = st.columns(2)
+    with col3:
+        st.metric("Ronda", match.round or "—")
+    with col4:
+        if match.group:
+            st.metric("Grupo", match.group)
+
+    # ── Contexto del partido ─────────────────────────────────────────
+
+    with st.expander("📋 Contexto del partido", expanded=False):
+        context = format_match_context(match)
+        st.write(context)
+
+    # ── Ejecutar predicción ──────────────────────────────────────────
+
+    with st.spinner("Calculando predicciones..."):
+        model = DixonColes(max_goals=POLLA_RULES.max_goals)
+        ep_calc = ExpectedScoreCalculator()
+        selector = StrategySelector()
+
+        pred = model.predict_match(home_name, away_name)
+
+        standings = (
+            db.query(Standing)
+            .filter(Standing.round == "overall")
+            .order_by(Standing.position.asc())
+            .all()
+        )
+        total_participants = db.query(Participant).count()
+        position = standings[0].position if standings else 1
+        if total_participants == 0:
+            total_participants = 15
+
+        rec = selector.get_recommendation(pred, position, total_participants)
+        best = rec.prediction
+
+    # ── Recomendación principal ──────────────────────────────────────
 
     st.divider()
-    st.subheader(f"{home_team} vs {away_team}")
+    st.subheader("🎯 Recomendación Principal")
 
-    st.info(
-        f"**Estrategia ({position}°): {recommendation.strategy_mode.value}**  \n"
-        f"Recomendado: **{recommendation.prediction.home_goals}-"
-        f"{recommendation.prediction.away_goals}**  |  "
-        f"EP: {recommendation.prediction.ep_total:.2f} pts  |  "
-        f"Risk: {recommendation.risk_score:.0%}",
-    )
-
-    col1, col2 = st.columns([1, 2])
-
-    with col1:
-        z = prediction.score_matrix * 100
-        fig = px.imshow(
-            z,
-            text_auto=".1f",
-            labels=dict(x=f"Goles {away_team}", y=f"Goles {home_team}"),
-            color_continuous_scale="Greens",
-            zmin=0,
-            zmax=float(z.max()),
+    col_r1, col_r2 = st.columns([2, 1])
+    with col_r1:
+        st.markdown(f"## 📊 Te sugerimos **{best.home_goals}-{best.away_goals}**")
+        explanation = explain_recommendation(
+            best.home_goals, best.away_goals,
+            best.prob_exact, best.ownership_estimate,
         )
-        fig.update_layout(
-            title="Probabilidades de Marcador (%)",
-            height=400,
-            coloraxis_showscale=False,
+        st.info(explanation)
+        st.caption(
+            f"Estrategia: **{rec.strategy_mode.value.replace('_', ' ').title()}**"
         )
-        st.plotly_chart(fig, use_container_width=True)
+    with col_r2:
+        st.metric("Probabilidad exacta", format_percentage(best.prob_exact))
+        st.metric("Probabilidad resultado", format_percentage(best.prob_result))
+        st.metric("≈ Popularidad", format_percentage(best.ownership_estimate))
 
-    with col2:
-        top10 = ranked[:10]
-        table_data = []
-        for i, r in enumerate(top10):
-            icon = "★ " if i == 0 else ""
-            table_data.append({
-                "#": i + 1,
-                "Marcador": f"{icon}{r.home_goals}-{r.away_goals}",
-                "EP Total": f"{r.ep_total:.2f}",
-                "P(Exacto)": f"{r.prob_exact:.1%}",
-                "P(Result)": f"{r.prob_result:.1%}",
-                "P(Goles)": f"{r.prob_goals_home + r.prob_goals_away:.1%}",
-            })
+    advice = strategy_advice(rec.strategy_mode.value, position)
+    st.success(advice)
 
-        st.dataframe(
-            table_data,
-            column_config={
-                "#": st.column_config.NumberColumn("#", width="small"),
-                "Marcador": st.column_config.TextColumn("Marcador"),
-                "EP Total": st.column_config.TextColumn("EP Total"),
-                "P(Exacto)": st.column_config.TextColumn("P(Exacto)"),
-                "P(Result)": st.column_config.TextColumn("P(Result)"),
-                "P(Goles)": st.column_config.TextColumn("P(Goles)"),
-            },
-            hide_index=True,
-            use_container_width=True,
-        )
+    # ── Alternativas ─────────────────────────────────────────────────
 
-    # ── Gráfico de EP apilado ───────────────────────────────────────
+    st.subheader("🔄 Alternativas a considerar")
+    ranked = ep_calc.rank_all_predictions(pred)[:5]
 
-    st.subheader("Componentes del Expected Score — Top 10")
+    for i, r in enumerate(ranked[1:4], start=2):
+        with st.container(border=True):
+            c1, c2 = st.columns([3, 1])
+            with c1:
+                st.markdown(f"**Opción {i}: {r.home_goals}-{r.away_goals}**")
+                pro = f"Probabilidad: {format_percentage(r.prob_exact)} de resultado exacto"
+                con = f"Popularidad estimada: {format_percentage(r.ownership_estimate)}"
+                st.caption(f"✅ {pro}  |  👥 {con}")
+            with c2:
+                st.metric("Score", f"{r.ep_total:.2f}")
 
-    scores = [f"{r.home_goals}-{r.away_goals}" for r in top10]
-    fig = go.Figure(data=[
-        go.Bar(name="Exacto", x=scores, y=[r.ep_exact for r in top10],
-               marker_color="#27ae60"),
-        go.Bar(name="Resultado", x=scores, y=[r.ep_result for r in top10],
-               marker_color="#2980b9"),
-        go.Bar(name="Goles", x=scores,
-               y=[r.ep_goals_home + r.ep_goals_away for r in top10],
-               marker_color="#8e44ad"),
-        go.Bar(name="Único", x=scores, y=[r.ep_unique for r in top10],
-               marker_color="#e67e22"),
-    ])
+    # ── Heatmap de probabilidades ────────────────────────────────────
+
+    st.subheader("🗺️ Mapa de Probabilidades de Marcador")
+    st.caption("Verde más intenso = mayor probabilidad de ese marcador exacto")
+
+    annot = [[f"{pred.score_matrix[i, j] * 100:.1f}%"
+              for j in range(pred.score_matrix.shape[1])]
+             for i in range(pred.score_matrix.shape[0])]
+
+    fig = go.Figure(data=go.Heatmap(
+        z=pred.score_matrix * 100,
+        x=[str(j) for j in range(pred.score_matrix.shape[1])],
+        y=[str(i) for i in range(pred.score_matrix.shape[0])],
+        colorscale="Greens",
+        zmin=0,
+        zmax=float((pred.score_matrix * 100).max()),
+        text=annot,
+        texttemplate="%{text}",
+        textfont={"size": 10},
+        hovertemplate=(
+            f"Goles {home_name}: %{{y}}<br>"
+            f"Goles {away_name}: %{{x}}<br>"
+            "Probabilidad: %{z:.1f}%<extra></extra>"
+        ),
+    ))
     fig.update_layout(
-        barmode="stack",
-        yaxis=dict(title="Expected Points"),
-        height=350,
+        xaxis_title=f"Goles {away_name}",
+        yaxis_title=f"Goles {home_name}",
+        height=450,
+        coloraxis_showscale=False,
     )
     st.plotly_chart(fig, use_container_width=True)
+
+    # ── Probabilidades de resultado ──────────────────────────────────
+
+    st.subheader("📈 Probabilidades de Resultado")
+    col_result1, col_result2, col_result3 = st.columns(3)
+    with col_result1:
+        st.metric(
+            f"🏠 Gana {home_name}",
+            format_percentage(pred.home_win_prob),
+            border=True,
+        )
+    with col_result2:
+        st.metric("🤝 Empate", format_percentage(pred.draw_prob), border=True)
+    with col_result3:
+        st.metric(
+            f"✈️ Gana {away_name}",
+            format_percentage(pred.away_win_prob),
+            border=True,
+        )
+
+finally:
+    db.close()
