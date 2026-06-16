@@ -1,6 +1,6 @@
 # SPEC-018: Web UI (Alternative to CLI)
 
-## Status: PLANNED
+## Status: COMPLETED
 
 ## Objective
 
