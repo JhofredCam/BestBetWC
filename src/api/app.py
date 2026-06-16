@@ -16,10 +16,12 @@ from src.api.routers import (
     strategies,
 )
 from src.api.schemas import HealthResponse
+from src.database.connection import initialize_database
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
+    initialize_database()
     yield
 
 
