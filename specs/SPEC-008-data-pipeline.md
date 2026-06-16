@@ -1,6 +1,6 @@
 # SPEC-008: Data Pipeline (FBref + Feature Engineering)
 
-## Status: PLANNED
+## Status: COMPLETED
 
 ## Objective
 
