@@ -4,37 +4,33 @@
 
 ## Objective
 
-Interfaz web sencilla servida por FastAPI usando Jinja2 + HTMX como alternativa
-al CLI. Permite visualizar predicciones, estrategias y resultados de forma
-intuitiva sin necesidad de abrir una terminal.
+Interfaz web interactiva con **Streamlit** como alternativa al CLI. Permite visualizar
+predicciones, estrategias y resultados de forma intuitiva, bonita y sin necesidad
+de abrir una terminal.
 
 ## Dependencies
 
-- **SPEC-017** (FastAPI backend - sirve la UI)
+- **SPEC-017** (FastAPI backend) — la UI se comunica con la API via HTTP requests internos
+- O bien usa directamente los módulos de Python (`DixonColes`, `EPCalculator`, etc.)
 
 ## Context
 
 El CLI actual (`bestbet predict`) es funcional pero poco amigable para consultas
-rápidas pre-partido. Una UI web permite:
-- Ver el pronóstico óptimo de un vistazo en el celular antes del partido
-- Explorar el Top 10 de marcadores con sus probabilidades
-- Ver la clasificación de la polla en tiempo real
-- Ejecutar simulaciones con sliders interactivos
-- Dashboard con métricas clave de tu posición en la polla
+rápidas pre-partido. Streamlit ofrece:
+- UI en **puro Python**, sin HTML/CSS/JS manual
+- Widgets interactivos nativos (sliders, selects, tabs, progress bars)
+- Charts integrados (st.line_chart, st.bar_chart, st.plotly_chart)
+- Layout responsive automático
+- Hot-reload en desarrollo
+- Despliegue trivial: `streamlit run src/web/app.py`
 
-### Stack elegido
+### Alternativas consideradas y descartadas
 
-| Componente | Tecnología | Justificación |
-|---|---|---|
-| Templates | **Jinja2** (incluido en FastAPI) | Sin dependencias extra, bien integrado |
-| Interactividad | **HTMX 2.0** (CDN, sin build step) | Reemplaza React/Vue para interacciones simples |
-| Estilos | **Pico CSS** (CDN, classless) | CSS minimalista, responsive, sin configurar |
-| Charts | **Chart.js** (CDN) | Gráficos de probabilidades y EP |
-| Empaquetado | Ninguno (CDN + archivos estáticos) | Cero build step, copiar y pegar |
-
-Alternativa considerada y descartada:
-- **Streamlit**: agrega mucha dependencia, el estado es complejo, menos control
-- **React/Vue + Vite**: overkill para 5-6 páginas, requiere build step
+| Opción | Motivo descarte |
+|---|---|
+| Jinja2 + HTMX + Pico CSS | Demasiado HTML/CSS manual, no tan bonito sin diseño |
+| React + Vite | Build step, JS tooling, overkill para 6-7 vistas |
+| Streamlit | Elegido: Python puro, widgets nativos, bonito por defecto |
 
 ## Technical Design
 
@@ -43,432 +39,772 @@ Alternativa considerada y descartada:
 ```
 src/web/
 ├── __init__.py
-├── routes.py           # Rutas de la UI (Jinja2 templates)
-├── static/
-│   ├── css/
-│   │   └── app.css     # Overrides mínimos sobre Pico CSS
-│   └── js/
-│       └── app.js      # HTMX extensions, chart init
-└── templates/
-    ├── base.html       # Layout base (navbar, footer, CDN links)
-    ├── index.html      # Dashboard principal
-    ├── predict.html    # Formulario de predicción + resultados
-    ├── predictions_list.html  # HTMX partial: lista de predicciones
-    ├── strategy.html   # Recomendaciones de estrategia
-    ├── simulate.html   # Simulador interactivo
-    ├── standings.html  # Clasificación de la polla
-    ├── profiles.html   # Perfiles de participantes
-    ├── metrics.html    # Métricas de calibración y rendimiento
-    └── components/
-        ├── score_matrix_card.html  # HTMX partial: matriz de marcadores
-        ├── ep_chart.html           # HTMX partial: gráfico EP
-        ├── match_card.html         # HTMX partial: tarjeta de partido
-        └── standing_row.html       # HTMX partial: fila de clasificación
+├── app.py              # Entry point: streamlit run src/web/app.py
+├── pages/
+│   ├── __init__.py
+│   ├── 1_dashboard.py       # Dashboard principal
+│   ├── 2_predict.py         # Predicción de partidos
+│   ├── 3_strategy.py        # Estrategia adaptativa
+│   ├── 4_simulate.py        # Simulador Monte Carlo
+│   ├── 5_standings.py       # Clasificación de la polla
+│   └── 6_profiles.py        # Perfiles de participantes
+├── components/
+│   ├── __init__.py
+│   ├── score_heatmap.py     # Heatmap de score matrix
+│   ├── ep_chart.py          # Gráfico de EP por marcador
+│   ├── match_card.py        # Tarjeta de partido
+│   ├── strategy_badge.py    # Badge de modo de estrategia
+│   └── profile_card.py      # Card de perfil de jugador
+├── state.py                 # Session state management
+└── api_client.py            # Cliente HTTP para SPEC-017 (o usa módulos directos)
 ```
 
-### `src/web/routes.py`
+### `src/web/app.py` — Entry point
 
 ```python
-from fastapi import APIRouter, Request, Depends
-from fastapi.responses import HTMLResponse
-from fastapi.templating import Jinja2Templates
-from pathlib import Path
+"""
+BestBetWC Web UI
+Ejecutar: streamlit run src/web/app.py
+"""
 
-templates = Jinja2Templates(directory=Path(__file__).parent / "templates")
+import streamlit as st
 
-router = APIRouter()
+st.set_page_config(
+    page_title="BestBetWC",
+    page_icon="⚽",
+    layout="wide",
+    initial_sidebar_state="expanded",
+)
 
-@router.get("/", response_class=HTMLResponse)
-async def dashboard(request: Request):
-    """Dashboard principal: próximo partido, posición, métricas clave."""
-    return templates.TemplateResponse("index.html", {
-        "request": request,
-        "page": "dashboard",
-    })
+st.logo(
+    "https://img.icons8.com/color/48/world-cup.png",
+    size="large",
+)
 
-@router.get("/predict", response_class=HTMLResponse)
-async def predict_page(request: Request):
-    """Página de predicción de partidos."""
-    return templates.TemplateResponse("predict.html", {
-        "request": request,
-        "page": "predict",
-    })
 
-@router.post("/predict/load", response_class=HTMLResponse)
-async def predict_load(
-    request: Request,
-    home_team: str = Form(...),
-    away_team: str = Form(...),
-    home_lambda: float = Form(1.5),
-    away_lambda: float = Form(1.0),
-    position: int = Form(1),
-):
-    """HTMX: carga resultados de predicción via POST al API interna."""
-    # Llama internamente a POST /api/predictions
-    # Retorna HTML partial con el resultado
-    ...
+# ── Sidebar ────────────────────────────────────────────────────────
 
-@router.get("/strategy", response_class=HTMLResponse)
-async def strategy_page(request: Request):
-    """Página de estrategia adaptativa."""
-    ...
+with st.sidebar:
+    st.title("⚽ BestBetWC")
+    st.caption("Mundial 2026")
 
-@router.get("/simulate", response_class=HTMLResponse)
-async def simulate_page(request: Request):
-    """Simulador Monte Carlo interactivo."""
-    ...
+    position = st.selectbox(
+        "Tu posición actual",
+        options=list(range(1, 16)),
+        index=2,
+        format_func=lambda p: f"{p}° {'🥇' if p == 1 else '🥈' if p == 2 else '🥉' if p == 3 else ''}",
+    )
 
-@router.get("/standings", response_class=HTMLResponse)
-async def standings_page(request: Request):
-    """Clasificación de la polla."""
-    ...
+    st.divider()
 
-@router.get("/profiles", response_class=HTMLResponse)
-async def profiles_page(request: Request):
-    """Perfiles de participantes."""
-    ...
+    total_participants = st.number_input(
+        "Participantes", min_value=2, max_value=100, value=15,
+    )
 
-@router.get("/metrics", response_class=HTMLResponse)
-async def metrics_page(request: Request):
-    """Dashboard de métricas de calibración."""
-    ...
-```
+    st.divider()
+    st.caption("v0.2.0 — Fase 2")
 
-### `src/web/templates/base.html`
 
-```html
-<!DOCTYPE html>
-<html lang="es" data-theme="dark">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>{% block title %}BestBetWC{% endblock %}</title>
-    <!-- Pico CSS -->
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@picocss/pico@2/css/pico.min.css">
-    <!-- HTMX -->
-    <script src="https://unpkg.com/htmx.org@2.0.4"></script>
-    <!-- Chart.js -->
-    <script src="https://cdn.jsdelivr.net/npm/chart.js@4"></script>
-    <!-- Custom CSS -->
-    <link rel="stylesheet" href="/static/css/app.css">
-</head>
-<body>
-    <nav class="container-fluid">
-        <ul>
-            <li><strong>BestBetWC</strong></li>
-        </ul>
-        <ul>
-            <li><a href="/" {% if page == 'dashboard' %}class="active"{% endif %}>Dashboard</a></li>
-            <li><a href="/predict" {% if page == 'predict' %}class="active"{% endif %}>Predecir</a></li>
-            <li><a href="/strategy" {% if page == 'strategy' %}class="active"{% endif %}>Estrategia</a></li>
-            <li><a href="/simulate" {% if page == 'simulate' %}class="active"{% endif %}>Simular</a></li>
-            <li><a href="/standings" {% if page == 'standings' %}class="active"{% endif %}>Clasificación</a></li>
-            <li><a href="/profiles" {% if page == 'profiles' %}class="active"{% endif %}>Perfiles</a></li>
-        </ul>
-    </nav>
+# ── Navegación ─────────────────────────────────────────────────────
 
-    <main class="container">
-        {% block content %}{% endblock %}
-    </main>
-
-    <footer class="container">
-        <small>BestBetWC v0.1.0 - Mundial 2026</small>
-    </footer>
-
-    <script src="/static/js/app.js"></script>
-    {% block scripts %}{% endblock %}
-</body>
-</html>
-```
-
-### `src/web/templates/index.html` - Dashboard
-
-```html
-{% extends "base.html" %}
-{% block title %}Dashboard - BestBetWC{% endblock %}
-{% block content %}
-
-<h1>Dashboard</h1>
-
-<div class="grid">
-    <!-- Posición actual -->
-    <article>
-        <header>Tu Posición</header>
-        <h2>#3 de 15</h2>
-        <progress value="3" max="15"></progress>
-    </article>
-
-    <!-- Puntos totales -->
-    <article>
-        <header>Puntos Totales</header>
-        <h2>142 pts</h2>
-        <small>Promedio: 2.2 pts/partido</small>
-    </article>
-
-    <!-- Win Probability -->
-    <article>
-        <header>Win Probability</header>
-        <h2>18.5%</h2>
-        <small>Probabilidad de ganar la polla</small>
-    </article>
-
-    <!-- Próximo partido -->
-    <article>
-        <header>Próximo Partido</header>
-        <h2>Brasil vs Argentina</h2>
-        <small>12 Jun 2026 - 16:00</small>
-    </article>
-</div>
-
-<!-- Próximo partido - predicción rápida -->
-<section>
-    <h2>Pronóstico Recomendado</h2>
-    <div hx-get="/predict/match?home=Brasil&away=Argentina&pos=3"
-         hx-trigger="load" hx-target="#quick-prediction">
-        <div id="quick-prediction" aria-busy="true">Cargando...</div>
-    </div>
-</section>
-
-<!-- Gráfico de Expected Score por marcador -->
-<section>
-    <h2>Top Marcadores por EP</h2>
-    <canvas id="epChart" width="600" height="300"></canvas>
-</section>
-
-<!-- Clasificación resumida -->
-<section>
-    <h2>Top 5 Clasificación</h2>
-    <div hx-get="/api/standings?limit=5" hx-trigger="load"
-         hx-target="#mini-standings">
-        <div id="mini-standings" aria-busy="true">Cargando...</div>
-    </div>
-</section>
-
-{% endblock %}
-```
-
-### `src/web/templates/predict.html` - Predicción
-
-```html
-{% extends "base.html" %}
-{% block title %}Predecir - BestBetWC{% endblock %}
-{% block content %}
-
-<h1>Predecir Partido</h1>
-
-<form hx-post="/predict/load" hx-target="#prediction-results" hx-indicator="#spinner">
-    <div class="grid">
-        <label>
-            Equipo Local
-            <input type="text" name="home_team" value="Brasil" required>
-        </label>
-        <label>
-            Equipo Visitante
-            <input type="text" name="away_team" value="Argentina" required>
-        </label>
-    </div>
-
-    <div class="grid">
-        <label>
-            Goles esperados Local (λ)
-            <input type="range" name="home_lambda" min="0.1" max="5.0" step="0.1"
-                   value="1.5" oninput="this.nextElementSibling.value = this.value">
-            <output>1.5</output>
-        </label>
-        <label>
-            Goles esperados Visitante (μ)
-            <input type="range" name="away_lambda" min="0.1" max="5.0" step="0.1"
-                   value="1.0" oninput="this.nextElementSibling.value = this.value">
-            <output>1.0</output>
-        </label>
-    </div>
-
-    <label>
-        Tu Posición en la Polla
-        <select name="position">
-            <option value="1">1° - Liderando</option>
-            <option value="3" selected>3° - Media tabla</option>
-            <option value="8">8° - Zona media-baja</option>
-            <option value="13">13° - Remontada necesaria</option>
-        </select>
-    </label>
-
-    <button type="submit" class="contrast">Calcular Pronóstico Óptimo</button>
-</form>
-
-<div id="spinner" class="htmx-indicator" aria-busy="true">Calculando...</div>
-
-<div id="prediction-results">
-    <!-- HTMX carga aquí los resultados -->
-</div>
-
-{% endblock %}
-```
-
-### `src/web/templates/components/score_matrix_card.html`
-
-```html
-<!-- HTMX partial: Heatmap de probabilidades de marcador -->
-<article>
-    <header>
-        Score Matrix: {{ home_team }} vs {{ away_team }}
-    </header>
-    <div class="score-grid">
-        <table class="score-matrix">
-            <thead>
-                <tr>
-                    <th></th>
-                    {% for j in range(8) %}
-                    <th>{{ j }}</th>
-                    {% endfor %}
-                </tr>
-            </thead>
-            <tbody>
-                {% for i in range(8) %}
-                <tr>
-                    <th>{{ i }}</th>
-                    {% for j in range(8) %}
-                    <td class="cell-{{ 'highlight' if i == rec_home and j == rec_away else 'normal' }}"
-                        style="background-color: rgba(0,150,100, {{ matrix[i][j] * 5 }})">
-                        {{ "%.1f%%"|format(matrix[i][j] * 100) }}
-                    </td>
-                    {% endfor %}
-                </tr>
-                {% endfor %}
-            </tbody>
-        </table>
-    </div>
-</article>
-```
-
-### `src/api/app.py` - Integración de UI
-
-```python
-# Agregar al crear la app:
-from src.web.routes import router as web_router
-from fastapi.staticfiles import StaticFiles
-
-app.mount("/static", StaticFiles(directory="src/web/static"), name="static")
-app.include_router(web_router)
-```
-
-La UI se sirve en las mismas rutas que la API (mismo puerto 8000), sin CORS necesario.
-
-### `src/web/static/js/app.js`
-
-```javascript
-// Init Chart.js para gráfico de EP
-function initEPChart(canvasId, labels, values) {
-    const ctx = document.getElementById(canvasId).getContext('2d');
-    new Chart(ctx, {
-        type: 'bar',
-        data: {
-            labels: labels,
-            datasets: [{
-                label: 'Expected Points',
-                data: values,
-                backgroundColor: 'rgba(0, 150, 100, 0.6)',
-            }]
-        },
-        options: {
-            responsive: true,
-            scales: { y: { beginAtZero: true } }
-        }
-    });
+pages = {
+    "Dashboard": "src/web/pages/1_dashboard.py",
+    "Predecir Partido": "src/web/pages/2_predict.py",
+    "Estrategia": "src/web/pages/3_strategy.py",
+    "Simular": "src/web/pages/4_simulate.py",
+    "Clasificación": "src/web/pages/5_standings.py",
+    "Perfiles": "src/web/pages/6_profiles.py",
 }
 
-// HTMX after-swap: inicializar charts en contenido nuevo
-document.addEventListener('htmx:afterSwap', function(evt) {
-    if (evt.detail.target.id === 'prediction-results') {
-        // El template incluye <script> que llama a initEPChart
-    }
-});
+pg = st.navigation([st.Page(path, title=title) for title, path in pages.items()])
+pg.run()
 ```
 
-## Screens / Pages
+### `src/web/pages/1_dashboard.py` — Dashboard
 
-| Ruta | Descripción | HTMX interactividad |
-|---|---|---|
-| `/` | Dashboard con posición, EP, próximos partidos | Carga lazy de predicción y standings |
-| `/predict` | Formulario: equipo A vs B, lambdas, posición | POST → carga top 10 marcadores + heatmap |
-| `/strategy` | Explicación de modos, matriz posición→estrategia | Slider de posición actualiza recomendación |
-| `/simulate` | Simulador: lambdas, N iteraciones | POST → gráfico de EP con error bars |
-| `/standings` | Tabla de clasificación completa | Polling cada 60s via HTMX |
-| `/profiles` | Cards de perfil de cada participante | Click expande detalles |
-| `/metrics` | Gráficos de calibración, EP acumulado | Selector de torneo para backtesting |
+```python
+import streamlit as st
+import numpy as np
+import plotly.graph_objects as go
+
+from src.models.dixon_coles import DixonColes
+from src.optimization.expected_score import ExpectedScoreCalculator
+from src.optimization.strategy import StrategySelector
+from src.config import POLLA_RULES
+
+st.title("Dashboard")
+
+# ── Métricas principales ───────────────────────────────────────────
+
+position = st.session_state.get("position", 3)
+
+col1, col2, col3, col4 = st.columns(4)
+with col1:
+    st.metric("Posición", f"#{position} de {POLLA_RULES.num_participants}",
+              delta=None, help="Tu posición actual en la polla")
+with col2:
+    st.metric("Puntos Totales", "142 pts",
+              delta="+8 vs fecha anterior", help="Puntos acumulados")
+with col3:
+    st.metric("Win Probability", "18.5%",
+              delta="+2.1%", help="Probabilidad de ganar la polla")
+with col4:
+    st.metric("Próximo Partido", "BRA vs ARG",
+              delta="12 Jun", help="Fecha del próximo partido")
+
+# ── Próximo partido - predicción rápida ────────────────────────────
+
+st.subheader("Pronóstico Recomendado")
+
+model = DixonColes(max_goals=POLLA_RULES.max_goals)
+prediction = model.predict_from_params(lambda_h=1.8, mu_a=1.2)
+
+col1, col2 = st.columns([1, 2])
+with col1:
+    ep_calc = ExpectedScoreCalculator()
+    selector = StrategySelector()
+    recommendation = selector.get_recommendation(
+        prediction, position, POLLA_RULES.num_participants,
+    )
+
+    st.metric(
+        label="Marcador Óptimo",
+        value=f"{recommendation.prediction.home_goals} - {recommendation.prediction.away_goals}",
+        delta=f"EP: {recommendation.prediction.ep_total:.2f} pts",
+    )
+
+    st.caption(f"Estrategia: **{recommendation.strategy_mode.value}**")
+    st.caption(recommendation.reasoning)
+
+    st.metric("Risk Score", f"{recommendation.risk_score:.0%}")
+    st.metric("Upside Potential", f"{recommendation.upside_potential:.2f} pts")
+
+with col2:
+    # Gráfico de probabilidades de resultado
+    fig = go.Figure(data=[
+        go.Bar(
+            x=["Victoria\nLocal", "Empate", "Victoria\nVisitante"],
+            y=[prediction.home_win_prob, prediction.draw_prob, prediction.away_win_prob],
+            marker_color=["#2ecc71", "#f1c40f", "#e74c3c"],
+            text=[f"{p:.1%}" for p in [
+                prediction.home_win_prob, prediction.draw_prob, prediction.away_win_prob
+            ]],
+            textposition="auto",
+        )
+    ])
+    fig.update_layout(
+        title="Probabilidades de Resultado",
+        yaxis=dict(title="Probabilidad", tickformat=".0%"),
+        height=300,
+    )
+    st.plotly_chart(fig, use_container_width=True)
+
+# ── Top marcadores por EP ──────────────────────────────────────────
+
+st.subheader("Top 5 Marcadores por Expected Score")
+
+ranked = ep_calc.rank_all_predictions(prediction)[:5]
+
+scores = [f"{r.home_goals}-{r.away_goals}" for r in ranked]
+eps = [r.ep_total for r in ranked]
+exact_probs = [r.prob_exact for r in ranked]
+result_probs = [r.prob_result for r in ranked]
+
+fig = go.Figure(data=[
+    go.Bar(name="EP Exacto", x=scores, y=[r.ep_exact for r in ranked],
+           marker_color="#27ae60"),
+    go.Bar(name="EP Resultado", x=scores, y=[r.ep_result for r in ranked],
+           marker_color="#2980b9"),
+    go.Bar(name="EP Goles", x=scores,
+           y=[r.ep_goals_home + r.ep_goals_away for r in ranked],
+           marker_color="#8e44ad"),
+    go.Bar(name="EP Único", x=scores, y=[r.ep_unique for r in ranked],
+           marker_color="#e67e22"),
+])
+fig.update_layout(
+    title="Componentes del Expected Score",
+    barmode="stack",
+    yaxis=dict(title="Expected Points"),
+    height=300,
+)
+st.plotly_chart(fig, use_container_width=True)
+
+# ── Mini clasificación ─────────────────────────────────────────────
+
+st.subheader("Top 5 Clasificación")
+
+standings_data = [
+    {"pos": 1, "nombre": "Carlos", "pts": 156, "exactos": 5, "delta": "—"},
+    {"pos": 2, "nombre": "María", "pts": 148, "exactos": 4, "delta": "-8"},
+    {"pos": 3, "nombre": "Tú", "pts": 142, "exactos": 3, "delta": "-14"},
+    {"pos": 4, "nombre": "Juan", "pts": 138, "exactos": 2, "delta": "-18"},
+    {"pos": 5, "nombre": "Ana", "pts": 135, "exactos": 3, "delta": "-21"},
+]
+st.dataframe(
+    standings_data,
+    column_config={
+        "pos": st.column_config.NumberColumn("#", width="small"),
+        "nombre": "Participante",
+        "pts": st.column_config.NumberColumn("Puntos", format="%d"),
+        "exactos": st.column_config.NumberColumn("Exactos", width="small"),
+        "delta": st.column_config.TextColumn("Δ", width="small"),
+    },
+    hide_index=True,
+    use_container_width=True,
+)
+```
+
+### `src/web/pages/2_predict.py` — Predicción
+
+```python
+import streamlit as st
+import numpy as np
+import plotly.graph_objects as go
+import plotly.express as px
+
+from src.models.dixon_coles import DixonColes
+from src.optimization.expected_score import ExpectedScoreCalculator
+from src.config import POLLA_RULES
+
+st.title("Predecir Partido")
+
+# ── Formulario ─────────────────────────────────────────────────────
+
+col1, col2, col3 = st.columns(3)
+with col1:
+    home_team = st.text_input("Equipo Local", "Brasil")
+    home_lambda = st.slider("Goles esperados Local (λ)", 0.1, 5.0, 1.8, 0.1)
+with col2:
+    away_team = st.text_input("Equipo Visitante", "Argentina")
+    away_lambda = st.slider("Goles esperados Visitante (μ)", 0.1, 5.0, 1.2, 0.1)
+with col3:
+    position = st.selectbox(
+        "Tu Posición",
+        options=list(range(1, 16)),
+        index=2,
+        format_func=lambda p: f"{p}° {'🥇 Líder' if p==1 else '🥈' if p==2 else ''}",
+    )
+
+if st.button("⚽ Calcular Pronóstico Óptimo", type="primary", use_container_width=True):
+
+    model = DixonColes(max_goals=POLLA_RULES.max_goals)
+    prediction = model.predict_from_params(home_lambda, away_lambda)
+    ep_calc = ExpectedScoreCalculator()
+    ranked = ep_calc.rank_all_predictions(prediction)
+
+    # ── Resultados ─────────────────────────────────────────────────
+
+    st.divider()
+    st.subheader(f"{home_team} vs {away_team}")
+
+    # Score matrix heatmap
+    col1, col2 = st.columns([1, 2])
+
+    with col1:
+        # Heatmap con Plotly
+        z = prediction.score_matrix * 100
+        fig = px.imshow(
+            z,
+            text_auto=".1f",
+            labels=dict(x=f"Goles {away_team}", y=f"Goles {home_team}"),
+            color_continuous_scale="Greens",
+            zmin=0,
+            zmax=float(z.max()),
+        )
+        fig.update_layout(
+            title="Probabilidades de Marcador (%)",
+            height=400,
+            coloraxis_showscale=False,
+        )
+        st.plotly_chart(fig, use_container_width=True)
+
+    with col2:
+        # Top 10 tabla
+        top10 = ranked[:10]
+        table_data = []
+        for i, r in enumerate(top10):
+            icon = "★ " if i == 0 else ""
+            table_data.append({
+                "#": i + 1,
+                "Marcador": f"{icon}{r.home_goals}-{r.away_goals}",
+                "EP Total": f"{r.ep_total:.2f}",
+                "P(Exacto)": f"{r.prob_exact:.1%}",
+                "P(Result)": f"{r.prob_result:.1%}",
+                "P(Goles)": f"{r.prob_goals_home + r.prob_goals_away:.1%}",
+            })
+
+        st.dataframe(
+            table_data,
+            column_config={
+                "#": st.column_config.NumberColumn("#", width="small"),
+                "Marcador": st.column_config.TextColumn("Marcador"),
+                "EP Total": st.column_config.TextColumn("EP Total"),
+                "P(Exacto)": st.column_config.TextColumn("P(Exacto)"),
+                "P(Result)": st.column_config.TextColumn("P(Result)"),
+                "P(Goles)": st.column_config.TextColumn("P(Goles)"),
+            },
+            hide_index=True,
+            use_container_width=True,
+        )
+
+    # ── Gráfico de EP apilado ───────────────────────────────────────
+
+    st.subheader("Componentes del Expected Score — Top 10")
+
+    scores = [f"{r.home_goals}-{r.away_goals}" for r in top10]
+    fig = go.Figure(data=[
+        go.Bar(name="Exacto", x=scores, y=[r.ep_exact for r in top10],
+               marker_color="#27ae60"),
+        go.Bar(name="Resultado", x=scores, y=[r.ep_result for r in top10],
+               marker_color="#2980b9"),
+        go.Bar(name="Goles", x=scores,
+               y=[r.ep_goals_home + r.ep_goals_away for r in top10],
+               marker_color="#8e44ad"),
+        go.Bar(name="Único", x=scores, y=[r.ep_unique for r in top10],
+               marker_color="#e67e22"),
+    ])
+    fig.update_layout(
+        barmode="stack",
+        yaxis=dict(title="Expected Points"),
+        height=350,
+    )
+    st.plotly_chart(fig, use_container_width=True)
+```
+
+### `src/web/pages/3_strategy.py` — Estrategia
+
+```python
+import streamlit as st
+import pandas as pd
+import plotly.graph_objects as go
+
+from src.optimization.strategy import StrategySelector, StrategyMode
+
+st.title("Estrategia Adaptativa")
+
+st.markdown("""
+El sistema ajusta automáticamente tu estrategia según tu posición en la tabla.
+La **estrategia óptima** no es la misma si vas liderando que si vas último:
+quien lidera debe minimizar riesgo; quien persigue debe diferenciarse.
+""")
+
+# ── Simulador de posición ──────────────────────────────────────────
+
+position = st.slider(
+    "Simula tu posición en la tabla",
+    min_value=1, max_value=15, value=3,
+    format="%d°",
+)
+
+selector = StrategySelector()
+mode = selector.determine_mode(position, 15)
+
+# ── Modos de estrategia ────────────────────────────────────────────
+
+modes_info = {
+    StrategyMode.MINIMIZE_RISK: {
+        "title": "🛡️ Minimizar Riesgo",
+        "description": "Eliges marcadores de alta probabilidad. Evitas diferenciación innecesaria.",
+        "color": "#2ecc71",
+        "risk": "Bajo",
+        "position": "1°",
+    },
+    StrategyMode.BALANCED: {
+        "title": "⚖️ Balanceado",
+        "description": "Mezclas predicciones seguras con algunas apuestas diferenciadas.",
+        "color": "#3498db",
+        "risk": "Medio",
+        "position": "2°-5°",
+    },
+    StrategyMode.DIFFERENTIATION: {
+        "title": "🎯 Diferenciación",
+        "description": "Buscas marcadores poco populares con alta probabilidad real de ocurrir.",
+        "color": "#e67e22",
+        "risk": "Medio-Alto",
+        "position": "6°-10°",
+    },
+    StrategyMode.HIGH_RISK: {
+        "title": "🚀 Alto Riesgo",
+        "description": "Apuestas agresivas: máximo upside, aceptando alta varianza.",
+        "color": "#e74c3c",
+        "risk": "Alto",
+        "position": "11°-15°",
+    },
+}
+
+cols = st.columns(4)
+for i, (mode_enum, info) in enumerate(modes_info.items()):
+    with cols[i]:
+        is_active = mode_enum == mode
+        st.markdown(f"""
+        <div style="border: 2px solid {info['color']};
+                    border-radius: 10px; padding: 15px;
+                    {'background-color: rgba(255,255,255,0.05)' if not is_active
+                     else 'background-color: ' + info['color'] + '22'};
+                    {'box-shadow: 0 0 15px ' + info['color'] + '44' if is_active else ''}">
+            <h4>{info['title']}</h4>
+            <p style="font-size: 0.85em; color: #888;">{info['description']}</p>
+            <p style="font-size: 0.8em;">Posición: <strong>{info['position']}</strong></p>
+            <p style="font-size: 0.8em;">Riesgo: <strong>{info['risk']}</strong></p>
+        </div>
+        """, unsafe_allow_html=True)
+
+# ── Visualización de rangos ────────────────────────────────────────
+
+st.subheader("Mapa de Estrategias")
+
+fig = go.Figure()
+ranges = [
+    (1, 1, "Minimizar Riesgo", "#2ecc71"),
+    (2, 5, "Balanceado", "#3498db"),
+    (6, 10, "Diferenciación", "#e67e22"),
+    (11, 15, "Alto Riesgo", "#e74c3c"),
+]
+for start, end, label, color in ranges:
+    fig.add_trace(go.Bar(
+        y=[label], x=[end - start + 1],
+        orientation="h", marker_color=color,
+        opacity=0.7 if (start <= position <= end) else 0.3,
+        text=f"Puestos {start}-{end}",
+        textposition="inside",
+    ))
+
+fig.update_layout(
+    xaxis=dict(title="Número de posiciones en este rango"),
+    showlegend=False,
+    height=200,
+)
+st.plotly_chart(fig, use_container_width=True)
+
+# ── Tu modo actual ─────────────────────────────────────────────────
+
+active = modes_info[mode]
+st.success(
+    f"**Tu estrategia actual ({position}°): {active['title']}**\n\n"
+    f"Riesgo: {active['risk']} · {active['description']}"
+)
+```
+
+### `src/web/pages/4_simulate.py` — Simulación Monte Carlo
+
+```python
+import streamlit as st
+import numpy as np
+import plotly.graph_objects as go
+
+from src.models.dixon_coles import DixonColes
+from src.optimization.expected_score import ExpectedScoreCalculator
+from src.config import POLLA_RULES
+
+st.title("Simulador Monte Carlo")
+
+col1, col2, col3 = st.columns(3)
+with col1:
+    home_lambda = st.slider("λ Local", 0.1, 5.0, 1.5, 0.1)
+with col2:
+    away_lambda = st.slider("μ Visitante", 0.1, 5.0, 1.0, 0.1)
+with col3:
+    n_simulations = st.select_slider(
+        "Simulaciones", options=[100, 1000, 5000, 10000, 50000], value=10000,
+    )
+
+if st.button("🎲 Ejecutar Simulación", type="primary", use_container_width=True):
+    model = DixonColes(max_goals=POLLA_RULES.max_goals)
+    prediction = model.predict_from_params(home_lambda, away_lambda)
+
+    with st.spinner(f"Ejecutando {n_simulations:,} simulaciones..."):
+        home_goals_sim = np.random.choice(
+            len(prediction.home_goals_dist),
+            size=n_simulations, p=prediction.home_goals_dist,
+        )
+        away_goals_sim = np.random.choice(
+            len(prediction.away_goals_dist),
+            size=n_simulations, p=prediction.away_goals_dist,
+        )
+
+        ep_calc = ExpectedScoreCalculator()
+        top5 = ep_calc.rank_all_predictions(prediction)[:5]
+
+        results = []
+        for r in top5:
+            eps = np.zeros(n_simulations)
+            for s in range(n_simulations):
+                h, a = home_goals_sim[s], away_goals_sim[s]
+                if h == r.home_goals and a == r.away_goals:
+                    eps[s] = POLLA_RULES.exact_score_pts
+                    eps[s] += POLLA_RULES.goals_home_correct_pts
+                    eps[s] += POLLA_RULES.goals_away_correct_pts
+                else:
+                    if h == r.home_goals:
+                        eps[s] += POLLA_RULES.goals_home_correct_pts
+                    if a == r.away_goals:
+                        eps[s] += POLLA_RULES.goals_away_correct_pts
+                    if ((r.home_goals > r.away_goals and h > a)
+                        or (r.home_goals == r.away_goals and h == a)
+                        or (r.home_goals < r.away_goals and h < a)):
+                        eps[s] += POLLA_RULES.result_correct_pts
+
+            results.append({
+                "marcador": f"{r.home_goals}-{r.away_goals}",
+                "ep_mean": eps.mean(),
+                "ep_std": eps.std(),
+                "ep_min": eps.min(),
+                "ep_max": eps.max(),
+            })
+
+    # ── Gráfico ─────────────────────────────────────────────────────
+
+    st.subheader(f"Resultados — {n_simulations:,} iteraciones")
+
+    scores = [r["marcador"] for r in results]
+    means = [r["ep_mean"] for r in results]
+    stds = [r["ep_std"] for r in results]
+
+    fig = go.Figure()
+    fig.add_trace(go.Bar(
+        x=scores, y=means,
+        error_y=dict(type="data", array=stds, visible=True),
+        marker_color=["#27ae60", "#2980b9", "#8e44ad", "#e67e22", "#e74c3c"],
+        text=[f"{m:.2f} ± {s:.2f}" for m, s in zip(means, stds)],
+        textposition="outside",
+    ))
+    fig.update_layout(
+        title="Expected Score Promedio ± 1σ",
+        yaxis=dict(title="Expected Points"),
+        height=400,
+    )
+    st.plotly_chart(fig, use_container_width=True)
+
+    # ── Tabla de métricas ───────────────────────────────────────────
+
+    st.dataframe(
+        [{
+            "Marcador": r["marcador"],
+            "EP Medio": f"{r['ep_mean']:.2f}",
+            "EP Desv": f"{r['ep_std']:.2f}",
+            "EP Mín": f"{r['ep_min']:.0f}",
+            "EP Máx": f"{r['ep_max']:.0f}",
+        } for r in results],
+        hide_index=True,
+        use_container_width=True,
+    )
+```
+
+### `src/web/pages/5_standings.py` — Clasificación
+
+```python
+import streamlit as st
+
+st.title("Clasificación de la Polla")
+
+st.dataframe(
+    [
+        {"#": 1, "Participante": "Carlos", "Pts": 156, "Exactos": 5, "Resultados": 32,
+         "Última fecha": "+12 pts"},
+        {"#": 2, "Participante": "María", "Pts": 148, "Exactos": 4, "Resultados": 30,
+         "Última fecha": "+8 pts"},
+        {"#": 3, "Participante": "⭐ Tú", "Pts": 142, "Exactos": 3, "Resultados": 31,
+         "Última fecha": "+10 pts"},
+        {"#": 4, "Participante": "Juan", "Pts": 138, "Exactos": 2, "Resultados": 29,
+         "Última fecha": "+6 pts"},
+        {"#": 5, "Participante": "Ana", "Pts": 135, "Exactos": 3, "Resultados": 28,
+         "Última fecha": "+14 pts"},
+    ],
+    column_config={
+        "#": st.column_config.NumberColumn("#", width="small"),
+        "Participante": st.column_config.TextColumn("Participante"),
+        "Pts": st.column_config.NumberColumn("Puntos", format="%d"),
+        "Exactos": st.column_config.NumberColumn("Exactos", width="small"),
+        "Resultados": st.column_config.NumberColumn("Resultados", width="small"),
+        "Última fecha": st.column_config.TextColumn("Última fecha"),
+    },
+    hide_index=True,
+    use_container_width=True,
+)
+```
+
+### `src/web/pages/6_profiles.py` — Perfiles
+
+```python
+import streamlit as st
+import plotly.graph_objects as go
+
+st.title("Perfiles de Participantes")
+
+tabs = st.tabs([f"Jugador {i+1}" for i in range(5)])
+
+for i, tab in enumerate(tabs):
+    with tab:
+        col1, col2 = st.columns([1, 2])
+
+        with col1:
+            st.subheader(f"Jugador {i+1}")
+            st.metric("Arquetipo", "Conservador")
+            st.metric("Result Accuracy", "58%")
+            st.metric("Exact Accuracy", "8%")
+            st.metric("Avg. Points/Match", "2.1")
+
+        with col2:
+            # Radar chart de scores
+            categories = ["Conservador", "Agresivo", "Market\nFollower", "Intuición",
+                          "Home Bias", "Draw\nAversion"]
+            values = [0.7, 0.2, 0.5, 0.3, 0.6, 0.4]
+
+            fig = go.Figure(data=go.Scatterpolar(
+                r=values + [values[0]],
+                theta=categories + [categories[0]],
+                fill="toself",
+                marker=dict(color="#27ae60"),
+            ))
+            fig.update_layout(height=350, polar=dict(radialaxis=dict(range=[0, 1])))
+            st.plotly_chart(fig, use_container_width=True)
+```
+
+### `src/web/api_client.py` — Comunicación con la API
+
+```python
+"""
+Cliente HTTP para consumir la API de SPEC-017.
+Se usa cuando los datos vienen de BD en lugar de parámetros directos.
+"""
+
+import httpx
+from typing import Optional
+from urllib.parse import urljoin
+
+API_BASE = "http://localhost:8000/api"
+
+async def get_match(match_id: int) -> dict:
+    async with httpx.AsyncClient() as client:
+        r = await client.get(f"{API_BASE}/matches/{match_id}")
+        r.raise_for_status()
+        return r.json()
+
+async def predict_match(
+    home_team: str, away_team: str,
+    home_lambda: float, away_lambda: float, position: int,
+) -> dict:
+    async with httpx.AsyncClient() as client:
+        r = await client.post(f"{API_BASE}/predictions", json={
+            "home_team": home_team,
+            "away_team": away_team,
+            "home_lambda": home_lambda,
+            "away_lambda": away_lambda,
+            "current_position": position,
+        })
+        r.raise_for_status()
+        return r.json()
+
+async def get_standings() -> list[dict]:
+    async with httpx.AsyncClient() as client:
+        r = await client.get(f"{API_BASE}/standings")
+        r.raise_for_status()
+        return r.json()
+
+async def get_profiles() -> list[dict]:
+    async with httpx.AsyncClient() as client:
+        r = await client.get(f"{API_BASE}/profiles")
+        r.raise_for_status()
+        return r.json()
+```
 
 ## Acceptance Criteria
 
 ### General
-- [ ] La UI carga en `http://localhost:8000/` (misma app que la API)
-- [ ] Navegación entre páginas funciona sin recarga completa (HTMX boost)
-- [ ] Responsive: se ve bien en mobile (Pico CSS maneja esto)
-- [ ] Tema oscuro por defecto, respeta `prefers-color-scheme`
-- [ ] No hay build step: templates y estáticos se sirven directamente
+- [ ] `streamlit run src/web/app.py` levanta la UI en `localhost:8501`
+- [ ] Navegación entre páginas funciona (sidebar + st.navigation)
+- [ ] Layout responsive (se adapta a mobile)
+- [ ] Hot-reload: cambios en código se reflejan sin reiniciar manualmente
+- [ ] Sin build step, sin node, sin npm
 
 ### Dashboard
-- [ ] Muestra posición actual, puntos totales, Win Probability
-- [ ] Próximo partido con predicción recomendada cargada via HTMX
-- [ ] Gráfico de EP con Chart.js (top 10 marcadores)
-- [ ] Mini-clasificación top 5
+- [ ] 4 métricas en cards (posición, puntos, WinProb, próximo partido)
+- [ ] Gráfico de barras de probabilidades de resultado
+- [ ] Gráfico de barras apiladas de componentes EP (top 5)
+- [ ] Tabla mini-clasificación (top 5)
+- [ ] Posición se lee de sidebar/st.session_state
 
 ### Predict Page
-- [ ] Formulario con sliders para lambdas y select para posición
-- [ ] Sliders muestran valor numérico en tiempo real
-- [ ] POST via HTMX carga resultados sin recargar página
-- [ ] Heatmap de score matrix con celda destacada (recomendación)
-- [ ] Tabla ordenable de top 10 marcadores
-- [ ] Indicador de "cargando" mientras se calcula
+- [ ] 3 columnas: local, visitante, posición
+- [ ] Sliders muestran valor numérico
+- [ ] Botón "Calcular" dispara predicción
+- [ ] Heatmap interactivo de score matrix (Plotly)
+- [ ] Tabla con top 10 marcadores y métricas
+- [ ] Gráfico de barras apiladas de EP
 
 ### Strategy Page
-- [ ] Muestra los 4 modos de estrategia con descripciones
-- [ ] Selector de posición actualiza recomendación actual
+- [ ] 4 cards de modos de estrategia con descripciones
+- [ ] Card activo resaltado con glow
+- [ ] Slider de posición actualiza modo activo en tiempo real
+- [ ] Barras horizontales mostrando rangos
 
 ### Simulation Page
-- [ ] Formulario: lambdas + número de simulaciones
-- [ ] Barra de progreso durante simulación
-- [ ] Gráfico comparativo de EP para top 5 marcadores
-- [ ] Métricas: EP medio, desviación, hit rates
+- [ ] Sliders para lambdas
+- [ ] Select de N simulaciones
+- [ ] Spinner durante ejecución
+- [ ] Gráfico de barras con error bars (±1σ)
+- [ ] Tabla de métricas por marcador
 
 ### Standings Page
-- [ ] Tabla completa de los 15 participantes
-- [ ] Columnas: posición, nombre, puntos, exactos, resultados
-- [ ] Auto-refresh cada 60 segundos (HTMX polling)
+- [ ] Tabla con todas las columnas
+- [ ] Tu fila resaltada
 
 ### Profiles Page
-- [ ] Grid de cards con nombre y arquetipo de cada participante
-- [ ] Click en card expande: radar chart de scores, sesgos, accuracy
-
-### No-JS fallback
-- [ ] Sin JavaScript, las páginas siguen funcionando (recarga completa)
-- [ ] Formularios usan POST normal, no dependen de HTMX para funcionar
+- [ ] Tabs por participante
+- [ ] Métricas y radar chart por perfil
 
 ### Tests
-- [ ] Test: cada ruta retorna HTML 200
-- [ ] Test: formulario de predicción con datos válidos retorna HTML con resultados
-- [ ] Test: formulario con datos inválidos muestra errores
-- [ ] Test: templates contienen los elementos esperados (nav, form, table)
+- [ ] Test: `streamlit run` levanta sin errores
+- [ ] Test: componentes importables y ejecutables
+- [ ] Test: `api_client.py` maneja errores HTTP
+- [ ] Test: integración con DixonColes y EP calculator
 
 ## Files to Create
 
 ```
 src/web/__init__.py
-src/web/routes.py
-src/web/static/css/app.css
-src/web/static/js/app.js
-src/web/templates/base.html
-src/web/templates/index.html
-src/web/templates/predict.html
-src/web/templates/strategy.html
-src/web/templates/simulate.html
-src/web/templates/standings.html
-src/web/templates/profiles.html
-src/web/templates/metrics.html
-src/web/templates/components/score_matrix_card.html
-src/web/templates/components/ep_chart.html
-src/web/templates/components/match_card.html
-src/web/templates/components/standing_row.html
+src/web/app.py
+src/web/state.py
+src/web/api_client.py
+src/web/pages/__init__.py
+src/web/pages/1_dashboard.py
+src/web/pages/2_predict.py
+src/web/pages/3_strategy.py
+src/web/pages/4_simulate.py
+src/web/pages/5_standings.py
+src/web/pages/6_profiles.py
+src/web/components/__init__.py
+src/web/components/score_heatmap.py
+src/web/components/ep_chart.py
+src/web/components/match_card.py
+src/web/components/strategy_badge.py
+src/web/components/profile_card.py
 tests/test_web.py
+```
+
+## Pyproject.toml addition
+
+```toml
+[project]
+dependencies = [
+    ...
+    "streamlit>=1.35.0",
+    "plotly>=5.15.0",  # Ya existe
+]
+
+[project.scripts]
+bestbet = "src.cli.main:app"
+bestbet-web = "streamlit.web.cli:main run src/web/app.py"
+```
+
+## Ejecución
+
+```bash
+# Desarrollo (hot-reload)
+streamlit run src/web/app.py
+
+# Producción
+bestbet-web
 ```
 
 ## Git Workflow
@@ -476,46 +812,49 @@ tests/test_web.py
 ```bash
 git checkout -b feature/spec-018-web-ui
 
-# Commit 1: base layout + static assets
-git add src/web/__init__.py src/web/routes.py
-git add src/web/templates/base.html src/web/static/
-git commit -m "feat(SPEC-018): add web UI base layout with Pico CSS + HTMX + Chart.js"
+# Commit 1: estructura base + componentes
+git add src/web/__init__.py src/web/app.py src/web/state.py src/web/api_client.py
+git add src/web/pages/__init__.py src/web/components/__init__.py
+git commit -m "feat(SPEC-018): add Streamlit app structure with navigation and API client"
 
 # Commit 2: dashboard + predict pages
-git add src/web/templates/index.html src/web/templates/predict.html
-git add src/web/templates/components/
-git commit -m "feat(SPEC-018): add dashboard and prediction pages with HTMX interactivity"
+git add src/web/pages/1_dashboard.py src/web/pages/2_predict.py
+git add src/web/components/
+git commit -m "feat(SPEC-018): add dashboard and predict pages with Plotly charts"
 
-# Commit 3: strategy + simulate + standings + profiles
-git add src/web/templates/strategy.html src/web/templates/simulate.html
-git add src/web/templates/standings.html src/web/templates/profiles.html src/web/templates/metrics.html
-git commit -m "feat(SPEC-018): add strategy, simulation, standings, profiles, and metrics pages"
+# Commit 3: strategy + simulate pages
+git add src/web/pages/3_strategy.py src/web/pages/4_simulate.py
+git commit -m "feat(SPEC-018): add strategy and simulation pages"
 
-# Commit 4: integrate with FastAPI app
-# Update src/api/app.py to mount static files + include web router
-git add src/api/app.py
-git commit -m "feat(SPEC-018): integrate web UI into FastAPI app (static mount + router)"
+# Commit 4: standings + profiles pages
+git add src/web/pages/5_standings.py src/web/pages/6_profiles.py
+git commit -m "feat(SPEC-018): add standings and profiles pages"
 
-# Commit 5: tests
-git add tests/test_web.py
-git commit -m "test(SPEC-018): add web UI route and template tests"
+# Commit 5: update pyproject.toml + tests
+git add pyproject.toml tests/test_web.py
+git commit -m "feat(SPEC-018): add streamlit dep, bestbet-web script, and web tests"
 
+# Verify
 pytest tests/test_web.py -v
 ruff check src/web/
+streamlit run src/web/app.py  # Aceptar manualmente
 
+# CI green → merge
 git checkout main
 git merge feature/spec-018-web-ui
+
+# Push
+git push origin main
 ```
 
 ## Notes
 
-- Pico CSS v2 es classless: el HTML semántico se estiliza automáticamente
-- HTMX 2.0 usa `hx-get`, `hx-post`, `hx-trigger`, `hx-target`, `hx-swap`
-- Los templates de componentes (partials) se renderizan solos o dentro de layouts
-- Chart.js se inicializa desde `<script>` inline en cada partial que use gráficos
-- El tema dark/light se controla con `data-theme="dark"` en `<html>`
-- Si se necesita autenticación en el futuro, usar FastAPI's OAuth2 + Jinja2 sessions
-- NO incluir node_modules, webpack, vite, ni ningún build step
-- Todas las dependencias JS/CSS se cargan desde CDN (Pico CSS, HTMX, Chart.js)
-- Los archivos estáticos se sirven desde `src/web/static/` montados en `/static/`
-- Para development, `uvicorn src.api.app:app --reload` recarga templates automáticamente
+- Streamlit es stateful: usar `st.session_state` para posición, configuración
+- `st.navigation` + `st.Page` (Streamlit 1.35+) para navegación multi-página
+- Plotly para gráficos interactivos (heatmap, barras, radar)
+- Los componentes (`src/web/components/`) encapsulan widgets reusables
+- `api_client.py` se comunica con SPEC-017 si está corriendo; si no, usa módulos directos
+- En desarrollo concurrente con SPEC-017, usar `httpx` para llamadas HTTP internas
+- Si SPEC-017 no está implementado, usar directamente DixonColes/EPCalculator en memoria
+- NO requiere Node.js, npm, build tools, ni configuraciones complejas
+- Peso total de dependencias extra: solo Streamlit (~15MB) + Plotly (ya incluido)
