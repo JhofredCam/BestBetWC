@@ -32,4 +32,4 @@ for i, tab in enumerate(tabs):
                 marker=dict(color="#27ae60"),
             ))
             fig.update_layout(height=350, polar=dict(radialaxis=dict(range=[0, 1])))
-            st.plotly_chart(fig, use_container_width=True)
+        st.plotly_chart(fig, use_container_width=True, key=f"profile_radar_{i}")

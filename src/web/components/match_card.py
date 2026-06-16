@@ -6,7 +6,7 @@ from __future__ import annotations
 
 import streamlit as st
 
-from src.optimization.expected_score import ExpectedScoreResult
+from src.models.dixon_coles import MatchPrediction
 from src.optimization.strategy import StrategyRecommendation
 
 
@@ -14,6 +14,7 @@ def render_match_card(
     home_team: str,
     away_team: str,
     recommendation: StrategyRecommendation,
+    match_prediction: MatchPrediction | None = None,
 ) -> None:
     pred = recommendation.prediction
     col1, col2 = st.columns([1, 2])
@@ -30,28 +31,24 @@ def render_match_card(
         st.metric("Upside Potential", f"{recommendation.upside_potential:.2f} pts")
 
     with col2:
-        _render_result_probs(prediction=pred)
+        if match_prediction is not None:
+            _render_result_probs(match_prediction)
 
 
-def _render_result_probs(
-    home_win_prob: float | None = None,
-    draw_prob: float | None = None,
-    away_win_prob: float | None = None,
-    prediction: ExpectedScoreResult | None = None,
-) -> None:
+def _render_result_probs(match_prediction: MatchPrediction) -> None:
     import plotly.graph_objects as go
 
-    if prediction is not None:
-        home_win_prob = prediction.prob_result
-        draw_prob = prediction.prob_result
-        away_win_prob = prediction.prob_result
-
+    probs = [
+        match_prediction.home_win_prob,
+        match_prediction.draw_prob,
+        match_prediction.away_win_prob,
+    ]
     fig = go.Figure(data=[
         go.Bar(
             x=["Victoria\nLocal", "Empate", "Victoria\nVisitante"],
-            y=[home_win_prob, draw_prob, away_win_prob],
+            y=probs,
             marker_color=["#2ecc71", "#f1c40f", "#e74c3c"],
-            text=[f"{p:.1%}" for p in [home_win_prob, draw_prob, away_win_prob]],
+            text=[f"{p:.1%}" for p in probs],
             textposition="auto",
         )
     ])

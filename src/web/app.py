@@ -7,6 +7,8 @@ from __future__ import annotations
 
 import streamlit as st
 
+from src.web.state import init_state
+
 st.set_page_config(
     page_title="BestBetWC",
     page_icon="⚽",
@@ -18,6 +20,8 @@ st.logo(
     "https://img.icons8.com/color/48/world-cup.png",
     size="large",
 )
+
+init_state()
 
 # ── Sidebar ────────────────────────────────────────────────────────
 
@@ -48,12 +52,12 @@ with st.sidebar:
 # ── Navegación ─────────────────────────────────────────────────────
 
 pages = {
-    "Dashboard": "src/web/pages/1_dashboard.py",
-    "Predecir Partido": "src/web/pages/2_predict.py",
-    "Estrategia": "src/web/pages/3_strategy.py",
-    "Simular": "src/web/pages/4_simulate.py",
-    "Clasificación": "src/web/pages/5_standings.py",
-    "Perfiles": "src/web/pages/6_profiles.py",
+    "Dashboard": "pages/1_dashboard.py",
+    "Predecir Partido": "pages/2_predict.py",
+    "Estrategia": "pages/3_strategy.py",
+    "Simular": "pages/4_simulate.py",
+    "Clasificación": "pages/5_standings.py",
+    "Perfiles": "pages/6_profiles.py",
 }
 
 pg = st.navigation([st.Page(path, title=title) for title, path in pages.items()])

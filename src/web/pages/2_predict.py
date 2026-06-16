@@ -7,6 +7,7 @@ import streamlit as st
 from src.config import POLLA_RULES
 from src.models.dixon_coles import DixonColes
 from src.optimization.expected_score import ExpectedScoreCalculator
+from src.optimization.strategy import StrategySelector
 
 st.title("Predecir Partido")
 
@@ -34,10 +35,23 @@ if st.button("⚽ Calcular Pronóstico Óptimo", type="primary", use_container_w
     ep_calc = ExpectedScoreCalculator()
     ranked = ep_calc.rank_all_predictions(prediction)
 
+    selector = StrategySelector()
+    recommendation = selector.get_recommendation(
+        prediction, position, POLLA_RULES.num_participants,
+    )
+
     # ── Resultados ─────────────────────────────────────────────────
 
     st.divider()
     st.subheader(f"{home_team} vs {away_team}")
+
+    st.info(
+        f"**Estrategia ({position}°): {recommendation.strategy_mode.value}**  \n"
+        f"Recomendado: **{recommendation.prediction.home_goals}-"
+        f"{recommendation.prediction.away_goals}**  |  "
+        f"EP: {recommendation.prediction.ep_total:.2f} pts  |  "
+        f"Risk: {recommendation.risk_score:.0%}",
+    )
 
     col1, col2 = st.columns([1, 2])
 
