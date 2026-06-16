@@ -4,6 +4,8 @@ Combines Dixon-Coles, betting market, XGBoost, and future Bayesian model
 predictions into a single unified MatchPrediction using configurable weights.
 """
 
+# ruff: noqa: N803, N806  # X/y naming is standard in ML code
+
 from __future__ import annotations
 
 from dataclasses import dataclass
@@ -138,7 +140,11 @@ class ModelEnsemble:
             matrices["dixon_coles"] = pred.score_matrix
 
         if self.config.market_weight > 0:
-            market_mat = market_score_matrix or self._market_score_matrix
+            market_mat = (
+                market_score_matrix
+                if market_score_matrix is not None
+                else self._market_score_matrix
+            )
             if market_mat is not None:
                 matrices["market"] = market_mat
 

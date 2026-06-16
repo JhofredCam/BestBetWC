@@ -4,8 +4,7 @@ import numpy as np
 import pytest
 
 from src.models.dixon_coles import DixonColes, MatchPrediction
-from src.models.ensemble import ModelEnsemble, EnsembleConfig, _ensemble_score_matrices
-from src.models.gradient_boost import GradientBoostModel, GBModelConfig
+from src.models.ensemble import EnsembleConfig, ModelEnsemble, _ensemble_score_matrices
 
 
 def make_score_matrix(max_goals: int = 7) -> np.ndarray:
@@ -388,12 +387,11 @@ class TestOptimizeWeights:
             away_probs = rng.dirichlet(np.ones(n_goals), size=n_samples)
             model_preds[name] = (home_probs, away_probs)
 
-        X_val = rng.randn(n_samples, 10)
+        x_val = rng.randn(n_samples, 10)
 
-        config = ensemble.optimize_weights(X_val, y_home, y_away, model_preds)
+        config = ensemble.optimize_weights(x_val, y_home, y_away, model_preds)
 
         assert isinstance(config, EnsembleConfig)
-        names = ["dixon_coles", "market"]
         values = [config.dixon_coles_weight, config.market_weight]
         assert abs(sum(values) - 1.0) < 1e-8
         for v in values:
@@ -432,8 +430,8 @@ class TestOptimizeWeights:
             "market": (model2_home, model2_away),
         }
 
-        X_val = rng.randn(n_samples, 10)
-        config = ensemble.optimize_weights(X_val, y_home, y_away, model_preds)
+        x_val = rng.randn(n_samples, 10)
+        config = ensemble.optimize_weights(x_val, y_home, y_away, model_preds)
 
         # Good model (dixon_coles) should get higher weight than bad model (market)
         assert config.dixon_coles_weight > config.market_weight
@@ -451,9 +449,9 @@ class TestOptimizeWeights:
         away_probs = rng.dirichlet(np.ones(n_goals), size=n_samples)
 
         model_preds = {"dixon_coles": (home_probs, away_probs)}
-        X_val = rng.randn(n_samples, 10)
+        x_val = rng.randn(n_samples, 10)
 
-        config = ensemble.optimize_weights(X_val, y_home, y_away, model_preds)
+        config = ensemble.optimize_weights(x_val, y_home, y_away, model_preds)
         # With a single model, its weight should be 1.0
         assert abs(config.dixon_coles_weight - 1.0) < 1e-8
 
