@@ -1,8 +1,8 @@
 from dataclasses import dataclass
 
 import numpy as np
-from scipy.optimize import minimize
-from scipy.stats import poisson
+from scipy.optimize import minimize  # type: ignore[import-untyped]
+from scipy.stats import poisson  # type: ignore[import-untyped]
 
 
 @dataclass
@@ -42,8 +42,8 @@ class DixonColes:
     def _score_probability(
         self, home_goals: int, away_goals: int, lambda_h: float, mu_a: float, rho: float
     ) -> float:
-        p_home = poisson.pmf(home_goals, lambda_h)
-        p_away = poisson.pmf(away_goals, mu_a)
+        p_home = float(poisson.pmf(home_goals, lambda_h))
+        p_away = float(poisson.pmf(away_goals, mu_a))
         tau = self._tau(home_goals, away_goals, lambda_h, mu_a, rho)
         return p_home * p_away * tau
 
@@ -94,12 +94,12 @@ class DixonColes:
         )
 
     def fit(self, matches: list[dict[str, int | str]]) -> None:
-        teams = set()
+        teams_set: set[str] = set()
         for m in matches:
-            teams.add(m["home_team"])
-            teams.add(m["away_team"])
+            teams_set.add(str(m["home_team"]))
+            teams_set.add(str(m["away_team"]))
 
-        teams = sorted(teams)
+        teams = sorted(teams_set)
         n_teams = len(teams)
 
         self.team_attack = {t: 0.0 for t in teams}
@@ -114,8 +114,8 @@ class DixonColes:
 
             ll = 0.0
             for m in matches:
-                home_idx = teams.index(m["home_team"])
-                away_idx = teams.index(m["away_team"])
+                home_idx = teams.index(str(m["home_team"]))
+                away_idx = teams.index(str(m["away_team"]))
                 home_goals = int(m["home_goals"])
                 away_goals = int(m["away_goals"])
 

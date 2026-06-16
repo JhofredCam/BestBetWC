@@ -37,7 +37,7 @@ class PollaRules:
 @dataclass
 class ModelConfig:
     dixon_coles_rho: float = -0.13
-    ensemble_weights: dict[str, float] = None
+    ensemble_weights: dict[str, float] | None = None
     calibration_method: str = "isotonic"
     validation_folds: int = 5
 
