@@ -1,6 +1,6 @@
 # SPEC-014: Monte Carlo Tournament Simulator
 
-## Status: PLANNED
+## Status: COMPLETED
 
 ## Objective
 
