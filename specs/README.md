@@ -103,4 +103,5 @@ Cada archivo `SPEC-XXX-nombre.md` contiene:
     └── 016-cli-interface   [COMPLETED] (deps: 003, 004, 005)
          └── 017-fastapi-backend   [COMPLETED] (deps: 002, 003, 004, 005, 014, 015)
               └── 018-web-ui (Streamlit)  [COMPLETED] (deps: 017)
+               └── 019-ux-simplificada  [PLANNED] (deps: 017, 018, 012, 010)
 ```
