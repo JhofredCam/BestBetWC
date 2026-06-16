@@ -8,16 +8,18 @@ from __future__ import annotations
 
 import asyncio
 import csv
-import io
 import time
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from datetime import datetime
 from pathlib import Path
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
-from bs4 import BeautifulSoup, Tag
+from bs4 import BeautifulSoup
 from dotenv import load_dotenv
 from sqlalchemy.orm import Session
+
+if TYPE_CHECKING:
+    from playwright.async_api import Browser, Page, Playwright
 
 from src.database.models import Participant, ParticipantPrediction
 
@@ -113,9 +115,9 @@ class PollaScraper:
         self.headless = headless
         self._last_request_time: float = 0.0
         self._rate_limit_seconds: float = 1.0
-        self._browser: Any = None
-        self._playwright: Any = None
-        self._page: Any = None
+        self._browser: Browser | None = None
+        self._playwright: Playwright | None = None
+        self._page: Page | None = None
 
     async def _rate_limit(self) -> None:
         elapsed = time.monotonic() - self._last_request_time
@@ -135,6 +137,7 @@ class PollaScraper:
     async def _scrape_page(self, url: str, wait_selector: str) -> str:
         await self._rate_limit()
         await self._ensure_browser()
+        assert self._page is not None
         await self._page.goto(url, wait_until="networkidle")
         try:
             await self._page.wait_for_selector(wait_selector, timeout=10000)
@@ -271,7 +274,12 @@ class PollaScraper:
                 away_goals_el = row.select_one(SELECTORS["predictions_away_goals"])
                 timestamp_el = row.select_one(SELECTORS["predictions_timestamp"])
 
-                if None in (username_el, home_goals_el, away_goals_el, timestamp_el):
+                if (
+                    username_el is None
+                    or home_goals_el is None
+                    or away_goals_el is None
+                    or timestamp_el is None
+                ):
                     continue
 
                 name = username_el.get_text(strip=True)
@@ -319,7 +327,14 @@ class PollaScraper:
                 round_el = row.select_one(SELECTORS["matches_round"])
                 result_el = row.select_one(SELECTORS["matches_result"])
 
-                if None in (id_el, home_el, away_el, dt_el, round_el, result_el):
+                if (
+                    id_el is None
+                    or home_el is None
+                    or away_el is None
+                    or dt_el is None
+                    or round_el is None
+                    or result_el is None
+                ):
                     continue
 
                 platform_id = id_el.get_text(strip=True)
@@ -367,7 +382,12 @@ class PollaScraper:
                 total_el = row.select_one(SELECTORS["standings_total_points"])
                 round_el = row.select_one(SELECTORS["standings_round_points"])
 
-                if None in (position_el, username_el, total_el, round_el):
+                if (
+                    position_el is None
+                    or username_el is None
+                    or total_el is None
+                    or round_el is None
+                ):
                     continue
 
                 standings.append(

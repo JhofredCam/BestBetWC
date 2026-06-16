@@ -1,6 +1,5 @@
 """Tests for pollamundial.org scraper module."""
 
-import csv
 import tempfile
 from collections.abc import Generator
 from datetime import datetime
