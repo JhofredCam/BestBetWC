@@ -21,7 +21,13 @@ from src.database.models import (
     Standing,
     SystemPrediction,
 )
-from src.etl.api_football import APIFootballClient, extract_world_cup_data
+from src.etl.api_football import (
+    APIFootballClient,
+    MatchStatus,
+    save_match_stats,
+    save_matches,
+    save_teams,
+)
 from src.etl.fbref import FBrefScraper
 from src.etl.odds_api import CachedOddsClient
 from src.models.dixon_coles import DixonColes, MatchPrediction
@@ -393,11 +399,33 @@ def update(
                     console.print("[cyan]Obteniendo datos de API-Football...[/cyan]")
                     session = get_session()
                     football_client = APIFootballClient(API_FOOTBALL_KEY)
-                    await extract_world_cup_data(football_client, session)
+
+                    teams = await football_client.get_world_cup_teams()
+                    console.print(f"  [dim]Equipos recibidos de la API: {len(teams)}[/dim]")
+
+                    team_map = save_teams(session, teams)
+                    console.print(f"  [dim]Equipos guardados en BD: {len(team_map)}[/dim]")
+
+                    fixtures = await football_client.get_world_cup_fixtures()
+                    console.print(f"  [dim]Partidos recibidos de la API: {len(fixtures)}[/dim]")
+
+                    match_ids = save_matches(session, fixtures, team_map)
+                    console.print(f"  [dim]Partidos guardados en BD: {len(match_ids)}[/dim]")
+
+                    stats_count = 0
+                    for match_data, _db_id in zip(fixtures, match_ids):
+                        if match_data.status == MatchStatus.FINISHED:
+                            stats = await football_client.get_match_statistics(
+                                match_data.api_id
+                            )
+                            save_match_stats(session, stats)
+                            stats_count += 1
+
                     await football_client.close()
                     session.close()
                     console.print(
-                        "  [green]Datos de equipos y partidos actualizados[/green]"
+                        f"  [green]Datos actualizados: {len(team_map)} equipos, "
+                        f"{len(match_ids)} partidos, {stats_count} stats[/green]"
                     )
                     results.append("football: actualizado")
             except httpx.HTTPStatusError as e:
