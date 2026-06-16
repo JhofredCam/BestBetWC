@@ -10,7 +10,8 @@ from src.api.schemas import HealthResponse
 
 @pytest.fixture
 def client() -> TestClient:
-    return TestClient(app)
+    with TestClient(app) as c:
+        yield c
 
 
 @pytest.fixture
