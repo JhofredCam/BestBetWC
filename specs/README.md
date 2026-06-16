@@ -95,7 +95,7 @@ Cada archivo `SPEC-XXX-nombre.md` contiene:
           └── 008-data-pipeline      [COMPLETED] (deps: 006, 007)
                └── 009-gradient-boost-model   [COMPLETED]
                    └── 010-model-ensemble    [COMPLETED] (deps: 003, 009)
-    ├── 011-polla-scraper   [PLANNED]
+    ├── 011-polla-scraper   [COMPLETED]
     │    └── 012-game-theory   [PLANNED] (deps: 011)
     │         └── 013-bracket-optimizer  [PLANNED] (deps: 004, 012)
     └── 014-monte-carlo-simulator   [PLANNED] (deps: 003, 010)

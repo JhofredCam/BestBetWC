@@ -1,6 +1,6 @@
 # SPEC-011: Polla Scraper
 
-## Status: PLANNED
+## Status: COMPLETED
 
 ## Objective
 
