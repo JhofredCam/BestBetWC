@@ -1,0 +1,1 @@
+"""BestBetWC REST API."""
