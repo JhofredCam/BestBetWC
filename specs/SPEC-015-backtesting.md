@@ -1,6 +1,6 @@
 # SPEC-015: Backtesting Framework
 
-## Status: PLANNED
+## Status: COMPLETED
 
 ## Objective
 
@@ -244,17 +244,17 @@ def calculate_score_matrix_log_loss(
 
 ## Acceptance Criteria
 
-- [ ] `load_tournament_data(2022)` carga 64 partidos en orden cronológico
-- [ ] `run_backtest(2022, ...)` usa SOLO datos anteriores a cada partido
-- [ ] Temporal leakage test: predicción del partido 1 no usa datos del partido 64
-- [ ] `compare_strategies()` muestra que optimal_ep > always_favorite
-- [ ] `calculate_calibration_error()` retorna ECE en [0, 1]
-- [ ] Log Loss para siempre-predecir-favorito > Log Loss del modelo entrenado
-- [ ] Brier Score < 0.25 para el modelo (mejor que random)
-- [ ] `BacktestReport` incluye summary legible
-- [ ] Test: expanding window usa máximo window_size partidos
-- [ ] Test: backtest sin suficientes datos iniciales usa priors no informativos
-- [ ] Test: métricas calculadas son consistentes con cálculo manual
+- [x] `load_tournament_data(2022)` carga 64 partidos en orden cronológico
+- [x] `run_backtest(2022, ...)` usa SOLO datos anteriores a cada partido
+- [x] Temporal leakage test: predicción del partido 1 no usa datos del partido 64
+- [x] `compare_strategies()` muestra que optimal_ep > always_favorite
+- [x] `calculate_calibration_error()` retorna ECE en [0, 1]
+- [x] Log Loss para siempre-predecir-favorito > Log Loss del modelo entrenado
+- [x] Brier Score < 0.25 para el modelo (mejor que random)
+- [x] `BacktestReport` incluye summary legible
+- [x] Test: expanding window usa máximo window_size partidos
+- [x] Test: backtest sin suficientes datos iniciales usa priors no informativos
+- [x] Test: métricas calculadas son consistentes con cálculo manual
 
 ## Files to Create
 

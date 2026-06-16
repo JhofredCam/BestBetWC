@@ -99,7 +99,7 @@ Cada archivo `SPEC-XXX-nombre.md` contiene:
 │         └── 012-game-theory   [COMPLETED] (deps: 011)
     │         └── 013-bracket-optimizer  [COMPLETED] (deps: 004, 012)
     └── 014-monte-carlo-simulator   [COMPLETED] (deps: 003, 010)
-         └── 015-backtesting   [PLANNED] (deps: 003, 004, 014)
+         └── 015-backtesting   [COMPLETED] (deps: 003, 004, 014)
     └── 016-cli-interface   [COMPLETED] (deps: 003, 004, 005)
          └── 017-fastapi-backend   [PLANNED] (deps: 002, 003, 004, 005, 014, 015)
               └── 018-web-ui (Streamlit)  [PLANNED] (deps: 017)
